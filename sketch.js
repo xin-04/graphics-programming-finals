@@ -63,7 +63,7 @@ function keyPressed() {
   }
 
   // Key 's': start animation
-  if (keyCode === 83 && currentMenu === 0 && task1.imageIsLoaded) {
+  if (keyCode === 83 && currentMenu === 0 && task1.imageLoaded) {
     task1.startAnimation();
   }
 
@@ -78,31 +78,34 @@ class Task1 {
   constructor() {
     this.bgColour = 220;
     this.currentImageIndex = 0;
-    this.imageIsLoaded = false;
+    this.imageLoaded = false;
 
+    // ANIMATION
     this.targetTime = 0;
     this.waitDuration = 2000; // Wait 2 seconds
-    this.timerStarted = false;  // Prevent timer from starting too early
-    
+    this.timerStarted = false;
     this.animationStarted = false;
+
+    // THRESHOLD
+    this.thresholdApplied = false;
+    this.thresholdSlider = createSlider(0, 255, 110);
+    this.thresholdSlider.position(150, 50);
   }
 
   draw() {
     background(this.bgColour);
-    fill(255);
-    text("Task 1", 50, 50);
+    fill("#34ebe1");
 
-    this.drawModeSelection();
-
-    if (this.imageIsLoaded) {
+    if (this.imageLoaded) {
       let currentImage = task1_images[this.currentImageIndex];
+      let imgOut = this.applyThreshold(currentImage);
 
       // Calculate the scale factor to fit the canvas bounds
-      let scale = min(width / currentImage.width, height / currentImage.height);
-      let w = currentImage.width * scale;
-      let h = currentImage.height * scale;
+      let scale = min(width / imgOut.width, height / imgOut.height);
+      let w = imgOut.width * scale;
+      let h = imgOut.height * scale;
 
-      image(currentImage, 0, 0, w, h);
+      image(imgOut, 0, 0, w, h);
     }
 
     if (this.animationStarted) {
@@ -112,14 +115,20 @@ class Task1 {
         this.targetTime = millis() + this.waitDuration;
       }
     }
+
+    text("Task 1", 50, 50);
+    text(this.thresholdSlider.value(), 350, 50);
+    this.drawModeSelection();
+
   }
 
+  // TODO: make a more interesting backdrop
   loadCarousel() {
     this.bgColour = color(0, 50, 100);
   }
 
   loadImages() {
-    this.imageIsLoaded = true;
+    this.imageLoaded = true;
   }
 
   drawModeSelection() {
@@ -156,19 +165,52 @@ class Task1 {
   }
 
   startAnimation() {
+    // Start timer
     this.targetTime = millis() + this.waitDuration;
     this.timerStarted = true;
     this.animationStarted = true;
   }
 
   pauseAnimation() {
+    // Pause timer
     this.targetTime = 0;
     this.timerStarted = false;
     this.animationStarted = false;
   }
 
-  applyThreshold() {
-    
+  applyThreshold(img) {
+    let imgOut = createImage(img.width, img.height);
+    imgOut.loadPixels();
+    img.loadPixels();
+
+    for (let x = 0; x < imgOut.width; x++) {
+      for (let y = 0; y < imgOut.height; y++) {
+
+        var index = (x + y * imgOut.width) * 4;
+
+        var r = img.pixels[index + 0];
+        var g = img.pixels[index + 1];
+        var b = img.pixels[index + 2];
+
+        var bright = (r + g + b) / 3; // simple
+        // var bright = 0.3 * r + 0.59 * g + 0.11 * b; // LUMA ratios
+
+        var threshold = this.thresholdSlider.value();
+        if (bright > threshold) {
+          imgOut.pixels[index + 0] = 255;
+          imgOut.pixels[index + 1] = 255;
+          imgOut.pixels[index + 2] = 255;
+          imgOut.pixels[index + 3] = 255;
+        } else {
+          imgOut.pixels[index + 0] = 0;
+          imgOut.pixels[index + 1] = 0;
+          imgOut.pixels[index + 2] = 0;
+          imgOut.pixels[index + 3] = 255;
+        }
+      }
+    }
+    imgOut.updatePixels();
+    return imgOut;
   }
 }
 
