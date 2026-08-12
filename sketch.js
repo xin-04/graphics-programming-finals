@@ -61,13 +61,24 @@ function keyPressed() {
   if (keyCode === 76 && currentMenu === 0) {
     task1.loadImages();
   }
+
+  // Key 's'
+  if (keyCode === 83 && currentMenu === 0) {
+    task1.startAnimation();
+  }
 }
 
 class Task1 {
   constructor() {
     this.bgColour = 220;
-    this.currentImage = task1_images[0];
+    this.currentImageIndex = 0;
     this.imageIsLoaded = false;
+
+    this.targetTime = 0;
+    this.waitDuration = 2000; // Wait 2 seconds
+    this.timerStarted = false;  // Prevent timer from starting too early
+    
+    this.animationStarted = false;
   }
 
   draw() {
@@ -78,13 +89,27 @@ class Task1 {
     this.drawModeSelection();
 
     if (this.imageIsLoaded) {
-      
-      // Calculate the scale factor to fit the canvas bounds
-      let scale = min(width / this.currentImage.width, height / this.currentImage.height);
-      let w = this.currentImage.width * scale;
-      let h = this.currentImage.height * scale;
+      let currentImage = task1_images[this.currentImageIndex];
 
-      image(this.currentImage, 0, 0, w, h);
+      // Calculate the scale factor to fit the canvas bounds
+      let scale = min(width / currentImage.width, height / currentImage.height);
+      let w = currentImage.width * scale;
+      let h = currentImage.height * scale;
+
+      image(currentImage, 0, 0, w, h);
+
+      if (!this.timerStarted) {
+        this.targetTime = millis() + this.waitDuration;
+        this.timerStarted = true;
+      }
+    }
+
+    if (this.animationStarted) {
+      // Wait 2 seconds before moving on to the next picture
+      if (millis() >= this.targetTime) {
+        this.currentImageIndex = (this.currentImageIndex + 1) % task1_images.length;
+        this.targetTime = millis() + this.waitDuration;
+      }
     }
   }
 
@@ -126,6 +151,14 @@ class Task1 {
     pop();
     textAlign(CENTER, CENTER);
     textStyle(NORMAL);
+  }
+
+  startAnimation() {
+    this.animationStarted = true;
+  }
+
+  applyThreshold() {
+    
   }
 }
 
