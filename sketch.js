@@ -52,20 +52,26 @@ function keyPressed() {
   }
 
   // TASK 1
-  // Key 'c'
+  // Key 'c': load carousel
   if (keyCode === 67 && currentMenu === 0) {
     task1.loadCarousel();
   }
 
-  // Key 'l'
+  // Key 'l': load images
   if (keyCode === 76 && currentMenu === 0) {
     task1.loadImages();
   }
 
-  // Key 's'
-  if (keyCode === 83 && currentMenu === 0) {
+  // Key 's': start animation
+  if (keyCode === 83 && currentMenu === 0 && task1.imageIsLoaded) {
     task1.startAnimation();
   }
+
+  // Key 'p': pause animation
+  if (keyCode === 80 && currentMenu === 0 && task1.animationStarted) {
+    task1.pauseAnimation();
+  }
+
 }
 
 class Task1 {
@@ -97,11 +103,6 @@ class Task1 {
       let h = currentImage.height * scale;
 
       image(currentImage, 0, 0, w, h);
-
-      if (!this.timerStarted) {
-        this.targetTime = millis() + this.waitDuration;
-        this.timerStarted = true;
-      }
     }
 
     if (this.animationStarted) {
@@ -125,7 +126,7 @@ class Task1 {
     let panelX = width - 235;
     let panelY = 10;
     let panelW = 215;
-    let panelH = 100;
+    let panelH = 120;
     let buttonW = 180;
     let buttonH = 28;
 
@@ -146,6 +147,7 @@ class Task1 {
     text("c: load the carousel", panelX + 14, panelY + 40);
     text("l: load images", panelX + 14, panelY + 60);
     text("s: start animation", panelX + 14, panelY + 80);
+    text("p: pause animation", panelX + 14, panelY + 100);
 
 
     pop();
@@ -154,7 +156,15 @@ class Task1 {
   }
 
   startAnimation() {
+    this.targetTime = millis() + this.waitDuration;
+    this.timerStarted = true;
     this.animationStarted = true;
+  }
+
+  pauseAnimation() {
+    this.targetTime = 0;
+    this.timerStarted = false;
+    this.animationStarted = false;
   }
 
   applyThreshold() {
