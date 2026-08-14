@@ -183,6 +183,11 @@ class Task1 {
     imgOut.loadPixels();
     img.loadPixels();
 
+    // Remove target background colour (white)
+    let targetR = 255;
+    let targetG = 255;
+    let targetB = 255;
+
     for (let x = 0; x < imgOut.width; x++) {
       for (let y = 0; y < imgOut.height; y++) {
 
@@ -192,20 +197,20 @@ class Task1 {
         var g = img.pixels[index + 1];
         var b = img.pixels[index + 2];
 
-        var bright = (r + g + b) / 3; // simple
-        // var bright = 0.3 * r + 0.59 * g + 0.11 * b; // LUMA ratios
+        // Calculate colour istance from the target background colour
+        let diff = dist(r, g, b, targetR, targetG, targetB);
+        
+        let threshold = this.thresholdSlider.value();
 
-        var threshold = this.thresholdSlider.value();
-        if (bright > threshold) {
-          imgOut.pixels[index + 0] = 255;
-          imgOut.pixels[index + 1] = 255;
-          imgOut.pixels[index + 2] = 255;
-          imgOut.pixels[index + 3] = 255;
+        if (diff < threshold) {
+          // Make transparent if close to the target colour
+          imgOut.pixels[index + 3] = 0;
         } else {
-          imgOut.pixels[index + 0] = 0;
-          imgOut.pixels[index + 1] = 0;
-          imgOut.pixels[index + 2] = 0;
+          // Otherwise, make fully opaque
           imgOut.pixels[index + 3] = 255;
+          imgOut.pixels[index + 4] = r;
+          imgOut.pixels[index + 5] = g;
+          imgOut.pixels[index + 6] = b;
         }
       }
     }
