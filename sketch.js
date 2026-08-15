@@ -4,6 +4,10 @@ var currentMenu;
 
 var task1_images = [];
 var task2_images = [];
+var thresholds = [];
+
+// TASK1 IMG1
+thresholds.push([[0, 227, 217, 226, 58], [1, 310, 5, 89, 58]]);
 
 function setup() {
   createCanvas(1200, 720);
@@ -12,7 +16,6 @@ function setup() {
   task1 = new Task1();
   task2 = new Task2();
   currentMenu = 0;
-
 }
 
 function preload() {
@@ -72,6 +75,18 @@ function keyPressed() {
     task1.pauseAnimation();
   }
 
+  // Key 'r': switch to RGB
+  if (keyCode === 82 && currentMenu === 0 && task1.imageLoaded) {
+    task1.currentThreshold = thresholds[task1.currentImageIndex][0];
+    console.log("Apply RGB threshold")
+  }
+
+  // Key 'h': switch to HSB
+  if (keyCode === 72 && currentMenu === 0 && task1.imageLoaded) {
+    task1.currentThreshold = thresholds[task1.currentImageIndex][1];
+    console.log("Apply HSB threshold");
+  }
+
 }
 
 class Task1 {
@@ -89,7 +104,9 @@ class Task1 {
     // THRESHOLD
     this.thresholdApplied = false;
     this.thresholdSlider = createSlider(0, 255, 110);
-    this.thresholdSlider.position(150, 50);
+    this.thresholdSlider.position(150, 25);
+
+    this.currentThreshold = thresholds[this.currentImageIndex][0];
   }
 
   draw() {
@@ -98,7 +115,7 @@ class Task1 {
 
     if (this.imageLoaded) {
       let currentImage = task1_images[this.currentImageIndex];
-      let imgOut = this.applyThreshold(currentImage);
+      let imgOut = this.applyThreshold(currentImage, this.currentThreshold);
 
       // Calculate the scale factor to fit the canvas bounds
       let scale = min(width / imgOut.width, height / imgOut.height);
@@ -135,7 +152,7 @@ class Task1 {
     let panelX = width - 235;
     let panelY = 10;
     let panelW = 215;
-    let panelH = 120;
+    let panelH = 160;
     let buttonW = 180;
     let buttonH = 28;
 
@@ -157,7 +174,8 @@ class Task1 {
     text("l: load images", panelX + 14, panelY + 60);
     text("s: start animation", panelX + 14, panelY + 80);
     text("p: pause animation", panelX + 14, panelY + 100);
-
+    text("r: Switch to RGB", panelX + 14, panelY + 120);
+    text("h: Switch to HSB", panelX + 14, panelY + 140);
 
     pop();
     textAlign(CENTER, CENTER);
@@ -178,39 +196,52 @@ class Task1 {
     this.animationStarted = false;
   }
 
-  applyThreshold(img) {
+  applyThreshold(img, thresholds) {
+    let isHSB = (thresholds[0] === 1);
+
     let imgOut = createImage(img.width, img.height);
     imgOut.loadPixels();
     img.loadPixels();
 
-    // Remove target background colour (white)
-    let targetR = 255;
-    let targetG = 255;
-    let targetB = 255;
+    // Remove target background colour
+    let targetA = thresholds[1];
+    let targetB = thresholds[2];
+    let targetC = thresholds[3];
+    let threshold = thresholds[4];
 
     for (let x = 0; x < imgOut.width; x++) {
       for (let y = 0; y < imgOut.height; y++) {
 
         var index = (x + y * imgOut.width) * 4;
 
-        var r = img.pixels[index + 0];
-        var g = img.pixels[index + 1];
-        var b = img.pixels[index + 2];
+        let r = img.pixels[index + 0];
+        let g = img.pixels[index + 1];
+        let b = img.pixels[index + 2];
 
-        // Calculate colour istance from the target background colour
-        let diff = dist(r, g, b, targetR, targetG, targetB);
-        
-        let threshold = this.thresholdSlider.value();
+        let diff;
+
+        if (isHSB) {
+          let c = color(r, g, b);
+          let h = hue(c);
+          let s = saturation(c);
+          let br = brightness(c);
+
+          // Calculate distance using HSB values
+          diff = dist(h, s, br, targetA, targetB, targetC);
+        } else {
+          // Calculate distance using standard RGB values
+          diff = dist(r, g, b, targetA, targetB, targetC);
+        }
 
         if (diff < threshold) {
-          // Make transparent if close to the target colour
+          // Make pixel transparent
           imgOut.pixels[index + 3] = 0;
         } else {
-          // Otherwise, make fully opaque
+          // Keep original pixel colors and make fully opaque
+          imgOut.pixels[index + 0] = r;
+          imgOut.pixels[index + 1] = g;
+          imgOut.pixels[index + 2] = b;
           imgOut.pixels[index + 3] = 255;
-          imgOut.pixels[index + 4] = r;
-          imgOut.pixels[index + 5] = g;
-          imgOut.pixels[index + 6] = b;
         }
       }
     }
