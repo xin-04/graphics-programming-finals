@@ -8,6 +8,20 @@ var thresholds = [];
 
 // TASK1 IMG1
 thresholds.push([[0, 227, 217, 226, 58], [1, 310, 5, 89, 58]]);
+// IMG2
+thresholds.push([[0, 255, 255, 255, 20], [1, 0, 0, 100, 2]]);
+// IMG3
+thresholds.push([[0, 239, 234, 240, 58], [1, 264, 2, 95, 55]]);
+// IMG4
+thresholds.push([[0, 255, 253, 250, 56], [1, 36, 2, 100, 14]]);
+// IMG5
+thresholds.push([[0, 255, 255, 255, 56], [1, 0, 0, 100, 28]]);
+// IMG6
+thresholds.push([[0, 250, 251, 253, 28], [1, 220, 1, 99, 34]]);
+// IMG7
+thresholds.push([[0, 255, 255, 255, 9], [1, 0, 0, 100, 2]]);
+// IMG8
+thresholds.push([[0, 244, 235, 230, 27], [1, 21, 6, 96, 38]]);
 
 function setup() {
   createCanvas(1200, 720);
@@ -103,7 +117,7 @@ class Task1 {
 
     // THRESHOLD
     this.thresholdApplied = false;
-    this.thresholdSlider = createSlider(0, 255, 110);
+    this.thresholdSlider = createSlider(0, 255, 110, 1);
     this.thresholdSlider.position(150, 25);
 
     this.currentThreshold = thresholds[this.currentImageIndex][0];
@@ -116,6 +130,7 @@ class Task1 {
     if (this.imageLoaded) {
       let currentImage = task1_images[this.currentImageIndex];
       let imgOut = this.applyThreshold(currentImage, this.currentThreshold);
+      console.log(`Current showing image ${this.currentImageIndex}`);
 
       // Calculate the scale factor to fit the canvas bounds
       let scale = min(width / imgOut.width, height / imgOut.height);
@@ -198,6 +213,8 @@ class Task1 {
 
   applyThreshold(img, thresholds) {
     let isHSB = (thresholds[0] === 1);
+    if (isHSB) colorMode(HSB);
+    else colorMode(RGB);
 
     let imgOut = createImage(img.width, img.height);
     imgOut.loadPixels();
@@ -208,6 +225,9 @@ class Task1 {
     let targetB = thresholds[2];
     let targetC = thresholds[3];
     let threshold = thresholds[4];
+    // let threshold = this.thresholdSlider.value();
+
+    let featherRange = 30;
 
     for (let x = 0; x < imgOut.width; x++) {
       for (let y = 0; y < imgOut.height; y++) {
@@ -217,6 +237,7 @@ class Task1 {
         let r = img.pixels[index + 0];
         let g = img.pixels[index + 1];
         let b = img.pixels[index + 2];
+        let originalA = img.pixels[index + 3];
 
         let diff;
 
@@ -233,20 +254,28 @@ class Task1 {
           diff = dist(r, g, b, targetA, targetB, targetC);
         }
 
+        imgOut.pixels[index + 0] = r;
+        imgOut.pixels[index + 1] = g;
+        imgOut.pixels[index + 2] = b;
+
         if (diff < threshold) {
           // Make pixel transparent
           imgOut.pixels[index + 3] = 0;
-        } else {
+        } else if (diff < threshold + featherRange) {
           // Keep original pixel colors and make fully opaque
-          imgOut.pixels[index + 0] = r;
-          imgOut.pixels[index + 1] = g;
-          imgOut.pixels[index + 2] = b;
-          imgOut.pixels[index + 3] = 255;
+          imgOut.pixels[index + 3] = originalA;
+        } else {
+          let alphaProgress = (diff - threshold) / featherRange;
+          imgOut.pixels[index + 3] = originalA * alphaProgress;
         }
       }
     }
     imgOut.updatePixels();
     return imgOut;
+  }
+
+  cleanImageEdges(img, thresholds) {
+    
   }
 }
 
