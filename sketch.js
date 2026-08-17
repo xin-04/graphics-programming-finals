@@ -7,21 +7,21 @@ var task2_images = [];
 var thresholds = [];
 
 // TASK1 IMG1
-thresholds.push([[0, 227, 217, 226, 58], [1, 310, 5, 89, 58]]);
+thresholds.push([0, 227, 217, 226, 59]);
 // IMG2
-thresholds.push([[0, 255, 255, 255, 20], [1, 0, 0, 100, 2]]);
+thresholds.push([0, 255, 255, 255, 24]);
 // IMG3
-thresholds.push([[0, 239, 234, 240, 58], [1, 264, 2, 95, 55]]);
+thresholds.push([0, 239, 234, 240, 58]);
 // IMG4
-thresholds.push([[0, 255, 253, 250, 56], [1, 36, 2, 100, 14]]);
+thresholds.push([0, 255, 253, 250, 56]);
 // IMG5
-thresholds.push([[0, 255, 255, 255, 56], [1, 0, 0, 100, 28]]);
+thresholds.push([0, 255, 255, 255, 56]);
 // IMG6
-thresholds.push([[0, 250, 251, 253, 28], [1, 220, 1, 99, 34]]);
+thresholds.push([0, 250, 251, 253, 28]);
 // IMG7
-thresholds.push([[0, 255, 255, 255, 9], [1, 0, 0, 100, 2]]);
+thresholds.push([0, 255, 255, 255, 9]);
 // IMG8
-thresholds.push([[0, 244, 235, 230, 27], [1, 21, 6, 96, 38]]);
+thresholds.push([0, 244, 235, 230, 27]);
 
 function setup() {
   createCanvas(1200, 720);
@@ -91,13 +91,23 @@ function keyPressed() {
 
   // Key 'r': switch to RGB
   if (keyCode === 82 && currentMenu === 0 && task1.imageLoaded) {
-    task1.currentThreshold = thresholds[task1.currentImageIndex][0];
+    // task1.currentThreshold = thresholds[task1.currentImageIndex][0];
+    thresholds[task1.currentImageIndex][0] = 0;
+    task1.processed_images[task1.currentImageIndex] = task1.applyThreshold(
+      task1_images[task1.currentImageIndex],
+      thresholds[task1.currentImageIndex]
+    );
     console.log("Apply RGB threshold")
   }
 
   // Key 'h': switch to HSB
   if (keyCode === 72 && currentMenu === 0 && task1.imageLoaded) {
-    task1.currentThreshold = thresholds[task1.currentImageIndex][1];
+    // task1.currentThreshold = thresholds[task1.currentImageIndex][1];
+    thresholds[task1.currentImageIndex][0] = 1;
+    task1.processed_images[task1.currentImageIndex] = task1.applyThreshold(
+      task1_images[task1.currentImageIndex],
+      thresholds[task1.currentImageIndex]
+    );
     console.log("Apply HSB threshold");
   }
 
@@ -108,6 +118,7 @@ class Task1 {
     this.bgColour = 220;
     this.currentImageIndex = 0;
     this.imageLoaded = false;
+    this.processed_image = [];
 
     // ANIMATION
     this.targetTime = 0;
@@ -123,21 +134,29 @@ class Task1 {
     this.currentThreshold = thresholds[this.currentImageIndex][0];
   }
 
+  loadImages() {
+    this.processed_image = [];
+    for (let i = 0; i < task1_images.length; i++) {
+      let cleaned = this.applyThreshold(task1_images[i], thresholds[i]);
+      this.processed_image.push(cleaned);
+    }
+    this.imageLoaded = true;
+  }
+
   draw() {
     background(this.bgColour);
     fill("#34ebe1");
 
-    if (this.imageLoaded) {
-      let currentImage = task1_images[this.currentImageIndex];
-      let imgOut = this.applyThreshold(currentImage, this.currentThreshold);
+    if (this.imageLoaded && this.processed_image.length > 0) {
+      let currentImage = this.processed_image[this.currentImageIndex];
       console.log(`Current showing image ${this.currentImageIndex}`);
 
       // Calculate the scale factor to fit the canvas bounds
-      let scale = min(width / imgOut.width, height / imgOut.height);
-      let w = imgOut.width * scale;
-      let h = imgOut.height * scale;
+      let scale = min(width / currentImage.width, height / currentImage.height);
+      let w = currentImage.width * scale;
+      let h = currentImage.height * scale;
 
-      image(imgOut, 0, 0, w, h);
+      image(currentImage, 0, 0, w, h);
     }
 
     if (this.animationStarted) {
@@ -159,9 +178,7 @@ class Task1 {
     this.bgColour = color(0, 50, 100);
   }
 
-  loadImages() {
-    this.imageLoaded = true;
-  }
+
 
   drawModeSelection() {
     let panelX = width - 235;
@@ -189,8 +206,8 @@ class Task1 {
     text("l: load images", panelX + 14, panelY + 60);
     text("s: start animation", panelX + 14, panelY + 80);
     text("p: pause animation", panelX + 14, panelY + 100);
-    text("r: Switch to RGB", panelX + 14, panelY + 120);
-    text("h: Switch to HSB", panelX + 14, panelY + 140);
+    // text("r: Switch to RGB", panelX + 14, panelY + 120);
+    // text("h: Switch to HSB", panelX + 14, panelY + 140);
 
     pop();
     textAlign(CENTER, CENTER);
@@ -212,9 +229,7 @@ class Task1 {
   }
 
   applyThreshold(img, thresholds) {
-    let isHSB = (thresholds[0] === 1);
-    if (isHSB) colorMode(HSB);
-    else colorMode(RGB);
+    let colourSpace = thresholds[0];
 
     let imgOut = createImage(img.width, img.height);
     imgOut.loadPixels();
@@ -224,7 +239,7 @@ class Task1 {
     let targetA = thresholds[1];
     let targetB = thresholds[2];
     let targetC = thresholds[3];
-    let threshold = thresholds[4];
+    let thresholdVal = thresholds[4];
     // let threshold = this.thresholdSlider.value();
 
     let featherRange = 30;
@@ -241,7 +256,8 @@ class Task1 {
 
         let diff;
 
-        if (isHSB) {
+        if (colourSpace === 1) {
+          colorMode(HSB, 360, 100, 100)
           let c = color(r, g, b);
           let h = hue(c);
           let s = saturation(c);
@@ -249,7 +265,9 @@ class Task1 {
 
           // Calculate distance using HSB values
           diff = dist(h, s, br, targetA, targetB, targetC);
+          
         } else {
+          colorMode(RGB, 255);
           // Calculate distance using standard RGB values
           diff = dist(r, g, b, targetA, targetB, targetC);
         }
@@ -258,14 +276,14 @@ class Task1 {
         imgOut.pixels[index + 1] = g;
         imgOut.pixels[index + 2] = b;
 
-        if (diff < threshold) {
+        if (diff < thresholdVal) {
           // Make pixel transparent
           imgOut.pixels[index + 3] = 0;
-        } else if (diff < threshold + featherRange) {
+        } else if (diff < thresholdVal + featherRange) {
           // Keep original pixel colors and make fully opaque
           imgOut.pixels[index + 3] = originalA;
         } else {
-          let alphaProgress = (diff - threshold) / featherRange;
+          let alphaProgress = (diff - thresholdVal) / featherRange;
           imgOut.pixels[index + 3] = originalA * alphaProgress;
         }
       }
