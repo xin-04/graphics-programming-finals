@@ -43,7 +43,7 @@ function setup() {
 
   task1 = new Task1();
   task2 = new Task2();
-  currentMenu = 0;
+  currentMenu = 1;
 }
 
 function draw() {
@@ -102,5 +102,17 @@ function keyPressed() {
   // ================= TASK 2 ==================
   if (keyCode === 80 && currentMenu === 1) {
     task2.loadPanorama();
+  }
+
+  if (keyCode === 73 && currentMenu === 1) {
+    task2.loadImages();
+  }
+
+  if (keyCode === 83 && currentMenu === 1 && task2.imageLoaded) {
+    task2.startAnimation();
+  }
+
+  if (keyCode === 80 && currentMenu === 1 && task2.animationStarted) {
+    task2.pauseAnimation();
   }
 }
