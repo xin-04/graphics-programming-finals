@@ -1,13 +1,15 @@
 class Task2 {
-  constructor() {
-  }
+    constructor() {
+        this.bgColour = 240;
+    }
 
-  draw() {
-    background(240);
-    fill(0);
-    text("Task 2", 50, 50);
-  }
+    draw() {
+        background(this.bgColour);
+        fill(0);
+        text("Task 2", 50, 50);
+    }
 
-  loadPanorama() {
-  }
+    loadPanorama() {
+        this.bgColour = "#b8e0da";
+    }
 }

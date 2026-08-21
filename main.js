@@ -98,4 +98,9 @@ function keyPressed() {
     );
     console.log("Apply HSB threshold");
   }
+
+  // ================= TASK 2 ==================
+  if (keyCode === 80 && currentMenu === 1) {
+    task2.loadPanorama();
+  }
 }
