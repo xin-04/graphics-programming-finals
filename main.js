@@ -57,30 +57,38 @@ function draw() {
 }
 
 function keyPressed() {
+  // Key '1': switch to task1
   if (keyCode === 49) {
     currentMenu = 0;
   }
 
+  // Key '2': switch to task2
   if (keyCode === 50) {
     currentMenu = 1;
   }
 
+  // ================= TASK 2 ==================
+  // Key 'c': load carousel
   if (keyCode === 67 && currentMenu === 0) {
     task1.loadCarousel();
   }
 
+  // Key 'l': load images
   if (keyCode === 76 && currentMenu === 0) {
     task1.loadImages();
   }
 
+  // Key 's': start animation
   if (keyCode === 83 && currentMenu === 0 && task1.imageLoaded) {
     task1.startAnimation();
   }
 
+  // Key 'p': pause animation
   if (keyCode === 80 && currentMenu === 0 && task1.animationStarted) {
     task1.pauseAnimation();
   }
 
+  // Key 'r': switch to RGB
   if (keyCode === 82 && currentMenu === 0 && task1.imageLoaded) {
     thresholds[task1.currentImageIndex][0] = 0;
     task1.processed_image[task1.currentImageIndex] = task1.applyThreshold(
@@ -90,6 +98,7 @@ function keyPressed() {
     console.log("Apply RGB threshold");
   }
 
+  // Key 'h': switch to HSB
   if (keyCode === 72 && currentMenu === 0 && task1.imageLoaded) {
     thresholds[task1.currentImageIndex][0] = 1;
     task1.processed_image[task1.currentImageIndex] = task1.applyThreshold(
@@ -100,18 +109,22 @@ function keyPressed() {
   }
 
   // ================= TASK 2 ==================
+  // Key 'p': load panorama
   if (keyCode === 80 && currentMenu === 1) {
     task2.loadPanorama();
   }
 
+  // Key 'i': load image pairs
   if (keyCode === 73 && currentMenu === 1) {
     task2.loadImages();
   }
 
+  // Key 's': start animation
   if (keyCode === 83 && currentMenu === 1 && task2.imageLoaded) {
     task2.startAnimation();
   }
 
+  // Key 'p': pause animation
   if (keyCode === 80 && currentMenu === 1 && task2.animationStarted) {
     task2.pauseAnimation();
   }

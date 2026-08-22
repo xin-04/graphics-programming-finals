@@ -23,19 +23,21 @@ class Task2 {
         background(this.bgColour);
         fill(0);
         if (this.imageLoaded && this.processed_image.length > 0) {
-            let currentImage = this.processed_image[this.currentImageIndex];
-            console.log(`Current showing image ${this.currentImageIndex}`);
+            let currentImage1 = this.processed_image[this.currentImageIndex];
+            let currentImage2 = this.processed_image[this.currentImageIndex + 1];
+            console.log(`Current showing pair ${this.currentImageIndex}`);
 
-            let scale = min(width / currentImage.width, height / currentImage.height);
-            let w = currentImage.width * scale;
-            let h = currentImage.height * scale;
+            // let scale = 1;
+            // let w = currentImage.width * scale;
+            // let h = currentImage.height * scale;
 
-            image(currentImage, 0, 0, w, h);
+            image(currentImage1, 0, 0);
+            image(currentImage2, width / 2, 0);
         }
 
         if (this.animationStarted) {
             if (millis() >= this.targetTime) {
-                this.currentImageIndex = (this.currentImageIndex + 1) % task1_images.length;
+                this.currentImageIndex = (this.currentImageIndex + 2) % task2_images.length;
                 this.targetTime = millis() + this.waitDuration;
             }
           }
@@ -44,10 +46,10 @@ class Task2 {
     }
 
     drawModeSelection() {
-        let panelX = width - 235;
-        let panelY = 10;
         let panelW = 215;
         let panelH = 200;
+        let panelX = width - panelW - 20;
+        let panelY = height - panelH - 20;
 
         push();
         rectMode(CORNER);
