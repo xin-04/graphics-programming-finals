@@ -143,4 +143,9 @@ function keyPressed() {
   if (keyCode === 84 && currentMenu === 1 && task2.edgeApplied) {
     task2.thresholdApplied = true;
   }
+
+  // Key 'n': compute centroid
+  if (keyCode === 78 && currentMenu === 1 && task2.thresholdApplied) {
+    task2.centroidApplied = true;
+  }
 }

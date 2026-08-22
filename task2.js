@@ -25,6 +25,10 @@ class Task2 {
                 [-1, 0, 1]
             ];
         
+        this.centroidApplied = false;
+        this.avgX = 0;
+        this.avgY = 0;
+        
         this.thresholdApplied = false;
         this.thresholdSlider = createSlider(0, 255, 110, 1);
         this.thresholdSlider.position(150, 25);
@@ -58,6 +62,15 @@ class Task2 {
             if (this.edgeApplied) {
                 currentImage1 = this.applyEdgeDetection(currentImage1);
                 currentImage2 = this.applyEdgeDetection(currentImage2);
+            }
+
+            if (this.centroidApplied) {
+                let centroidImg1 = this.computeCentroid(currentImage1);
+                let centroidImg2 = this.computeCentroid(currentImage2);
+                text(`cX: ${centroidImg1[0]}`, currentImage1.width / 2, currentImage1.height + 20);
+                text(`cY: ${centroidImg1[1]}`, currentImage1.width / 2, currentImage1.height + 40);
+                text(`cX: ${centroidImg2[0]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 20);
+                text(`cY: ${centroidImg2[1]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 40);
             }
 
             image(currentImage1, 0, 0);
@@ -183,8 +196,12 @@ class Task2 {
                         imgOut.pixels[index + 2] = 0;
                         imgOut.pixels[index + 3] = 255;
                     }
+                } else {
+                    imgOut.pixels[index + 0] = combo;
+                    imgOut.pixels[index + 1] = combo;
+                    imgOut.pixels[index + 2] = combo;
+                    imgOut.pixels[index + 3] = 255;
                 }
-                
             }
         }
         imgOut.updatePixels();
@@ -215,5 +232,36 @@ class Task2 {
         }
         // return the new color as an array
         return [totalRed, totalGreen, totalBlue];
+    }
+
+    computeCentroid(img) {
+        // take pixels coordinates
+        // calculate total x & y
+        // divide to get avg
+        // calculate dx & dy by comparing two frames
+        img.loadPixels();
+
+        let totalX = 0;
+        let totalY = 0;
+        let avgX = 0;
+        let avgY = 0;
+
+        // read every pixel
+        for (let x = 0; x < img.width; x++) {
+            for (let y = 0; y < img.height; y++) {
+
+                let index = (x + y * img.width) * 4;
+
+                if (img.pixels[index] < 200) {
+                    totalX += x;
+                    totalY += y;
+                }
+            }
+        }
+
+        avgX = totalX / (img.width - 1);
+        avgY = totalY / (img.height - 1);
+
+        return [avgX, avgY];
     }
 }
