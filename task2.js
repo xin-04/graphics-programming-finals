@@ -11,6 +11,20 @@ class Task2 {
         this.animationStarted = false;
 
         this.grayscaleApplied = false;
+
+        this.edgeApplied = false;
+        this.edgeMatrixX =
+            [
+                [-1, -2, -1],
+                [0, 0, 0],
+                [1, 2, 1]
+            ];
+        this.edgeMatrixY =
+            [
+                [-1, 0, 1],
+                [-2, 0, 2],
+                [-1, 0, 1]
+            ];
     }
 
     loadImages() {
@@ -19,7 +33,7 @@ class Task2 {
             this.processed_image.push(task2_images[i]);
         }
         this.imageLoaded = true;
-      }
+    }
 
     draw() {
         background(this.bgColour);
@@ -38,6 +52,11 @@ class Task2 {
                 currentImage2 = this.applyGrayscale(currentImage2);
             }
 
+            if (this.edgeApplied) {
+                currentImage1 = this.applyEdgeDetection(currentImage1);
+                currentImage2 = this.applyEdgeDetection(currentImage2);
+            }
+
             image(currentImage1, 0, 0);
             image(currentImage2, width / 2, 0);
         }
@@ -47,7 +66,7 @@ class Task2 {
                 this.currentImageIndex = (this.currentImageIndex + 2) % task2_images.length;
                 this.targetTime = millis() + this.waitDuration;
             }
-          }
+        }
         text("Task 2", 50, 50);
         this.drawModeSelection();
     }
@@ -85,7 +104,7 @@ class Task2 {
         textAlign(CENTER, CENTER);
         textStyle(NORMAL);
     }
-    
+
     startAnimation() {
         this.targetTime = millis() + this.waitDuration;
         this.timerStarted = true;
@@ -117,7 +136,7 @@ class Task2 {
                 let b = img.pixels[index + 2];
 
                 let gray = (r + g + b) / 3; // simple
-                // var gray = r * 0.299 + g * 0.587 + b * 0.114; // LUMA ratios 
+                // let gray = r * 0.299 + g * 0.587 + b * 0.114; // LUMA ratios 
 
                 imgOut.pixels[index + 0] = imgOut.pixels[index + 1] = imgOut.pixels[index + 2] = gray;
                 imgOut.pixels[index + 3] = 255;
@@ -125,5 +144,60 @@ class Task2 {
         }
         imgOut.updatePixels();
         return imgOut;
-    }    
+    }
+
+    applyEdgeDetection(img) {
+        let imgOut = createImage(img.width, img.height);
+        let matrixSize = this.edgeMatrixX.length;
+
+        imgOut.loadPixels();
+        img.loadPixels();
+
+        // read every pixel
+        for (let x = 0; x < imgOut.width; x++) {
+            for (let y = 0; y < imgOut.height; y++) {
+
+                let index = (x + y * imgOut.width) * 4;
+                let cX = this.convolution(x, y, this.edgeMatrixX, matrixSize, img);
+                let cY = this.convolution(x, y, this.edgeMatrixY, matrixSize, img);
+
+                cX = map(abs(cX[0]), 0, 1020, 0, 255);
+                cY = map(abs(cY[0]), 0, 1020, 0, 255);
+                let combo = cX + cY;
+
+                imgOut.pixels[index + 0] = combo;
+                imgOut.pixels[index + 1] = combo;
+                imgOut.pixels[index + 2] = combo;
+                imgOut.pixels[index + 3] = 255;
+            }
+        }
+        imgOut.updatePixels();
+        return imgOut;
+    }
+
+    convolution(x, y, matrix, matrixSize, img) {
+        let totalRed = 0.0;
+        let totalGreen = 0.0;
+        let totalBlue = 0.0;
+        let offset = floor(matrixSize / 2);
+
+        // convolution matrix loop
+        for (let i = 0; i < matrixSize; i++) {
+            for (let j = 0; j < matrixSize; j++) {
+                // Get pixel loc within convolution matrix
+                let xloc = x + i - offset;
+                let yloc = y + j - offset;
+                let index = (xloc + img.width * yloc) * 4;
+                // ensure we don't address a pixel that doesn't exist
+                index = constrain(index, 0, img.pixels.length - 1);
+
+                // multiply all values with the mask and sum up
+                totalRed += img.pixels[index + 0] * matrix[i][j];
+                totalGreen += img.pixels[index + 1] * matrix[i][j];
+                totalBlue += img.pixels[index + 2] * matrix[i][j];
+            }
+        }
+        // return the new color as an array
+        return [totalRed, totalGreen, totalBlue];
+    }
 }

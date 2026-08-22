@@ -133,4 +133,9 @@ function keyPressed() {
   if (keyCode === 71 && currentMenu === 1 && task2.imageLoaded) {
     task2.grayscaleApplied = true;
   }
+
+  // Key 'e': apply edge detection
+  if (keyCode === 69 && currentMenu === 1 && task2.imageLoaded && task2.grayscaleApplied) {
+    task2.edgeApplied = true;
+  }
 }
