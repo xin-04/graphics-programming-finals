@@ -135,7 +135,12 @@ function keyPressed() {
   }
 
   // Key 'e': apply edge detection
-  if (keyCode === 69 && currentMenu === 1 && task2.imageLoaded && task2.grayscaleApplied) {
+  if (keyCode === 69 && currentMenu === 1 && task2.grayscaleApplied) {
     task2.edgeApplied = true;
+  }
+
+  // Key 't': apply thresholding
+  if (keyCode === 84 && currentMenu === 1 && task2.edgeApplied) {
+    task2.thresholdApplied = true;
   }
 }

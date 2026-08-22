@@ -11,7 +11,6 @@ class Task2 {
         this.animationStarted = false;
 
         this.grayscaleApplied = false;
-
         this.edgeApplied = false;
         this.edgeMatrixX =
             [
@@ -25,6 +24,10 @@ class Task2 {
                 [-2, 0, 2],
                 [-1, 0, 1]
             ];
+        
+        this.thresholdApplied = false;
+        this.thresholdSlider = createSlider(0, 255, 110, 1);
+        this.thresholdSlider.position(150, 25);
     }
 
     loadImages() {
@@ -67,7 +70,10 @@ class Task2 {
                 this.targetTime = millis() + this.waitDuration;
             }
         }
+
+        fill(255);
         text("Task 2", 50, 50);
+        text(this.thresholdSlider.value(), 350, 50);
         this.drawModeSelection();
     }
 
@@ -165,10 +171,20 @@ class Task2 {
                 cY = map(abs(cY[0]), 0, 1020, 0, 255);
                 let combo = cX + cY;
 
-                imgOut.pixels[index + 0] = combo;
-                imgOut.pixels[index + 1] = combo;
-                imgOut.pixels[index + 2] = combo;
-                imgOut.pixels[index + 3] = 255;
+                if (this.thresholdApplied) {
+                    if (combo > this.thresholdSlider.value()) {
+                        imgOut.pixels[index + 0] = combo;
+                        imgOut.pixels[index + 1] = combo;
+                        imgOut.pixels[index + 2] = combo;
+                        imgOut.pixels[index + 3] = 255;
+                    } else {
+                        imgOut.pixels[index + 0] = 0;
+                        imgOut.pixels[index + 1] = 0;
+                        imgOut.pixels[index + 2] = 0;
+                        imgOut.pixels[index + 3] = 255;
+                    }
+                }
+                
             }
         }
         imgOut.updatePixels();
