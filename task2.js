@@ -9,6 +9,8 @@ class Task2 {
         this.waitDuration = 2000;
         this.timerStarted = false;
         this.animationStarted = false;
+
+        this.grayscaleApplied = false;
     }
 
     loadImages() {
@@ -30,6 +32,11 @@ class Task2 {
             // let scale = 1;
             // let w = currentImage.width * scale;
             // let h = currentImage.height * scale;
+
+            if (this.grayscaleApplied) {
+                currentImage1 = this.applyGrayscale(currentImage1);
+                currentImage2 = this.applyGrayscale(currentImage2);
+            }
 
             image(currentImage1, 0, 0);
             image(currentImage2, width / 2, 0);
@@ -95,5 +102,28 @@ class Task2 {
         this.bgColour = "#b8e0da";
     }
 
-    
+    applyGrayscale(img) {
+        let imgOut = createImage(img.width, img.height);
+        imgOut.loadPixels();
+        img.loadPixels();
+
+        for (let x = 0; x < imgOut.width; x++) {
+            for (let y = 0; y < imgOut.height; y++) {
+
+                let index = (x + y * imgOut.width) * 4;
+
+                let r = img.pixels[index + 0];
+                let g = img.pixels[index + 1];
+                let b = img.pixels[index + 2];
+
+                let gray = (r + g + b) / 3; // simple
+                // var gray = r * 0.299 + g * 0.587 + b * 0.114; // LUMA ratios 
+
+                imgOut.pixels[index + 0] = imgOut.pixels[index + 1] = imgOut.pixels[index + 2] = gray;
+                imgOut.pixels[index + 3] = 255;
+            }
+        }
+        imgOut.updatePixels();
+        return imgOut;
+    }    
 }

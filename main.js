@@ -128,4 +128,9 @@ function keyPressed() {
   if (keyCode === 80 && currentMenu === 1 && task2.animationStarted) {
     task2.pauseAnimation();
   }
+
+  // Key 'g': apply greyscale
+  if (keyCode === 71 && currentMenu === 1 && task2.imageLoaded) {
+    task2.grayscaleApplied = true;
+  }
 }
