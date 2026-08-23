@@ -189,7 +189,12 @@ class Task2 {
                 text(`cY: ${centroidImg2[1]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 40);
 
                 let direction = this.cachedDirection;
-                text(`Direction: ${direction}`, currentImage1.width / 2, currentImage1.height + 60); 
+                let directionX = currentImage1.width / 2;
+                let directionY = currentImage1.height + 60;
+                text(`Direction: ${direction}`, directionX, directionY);
+                if (direction && direction !== "UNDEFINED") {
+                    this.drawDirectionArrow(direction, directionX, directionY + 20);
+                }
             }
 
             image(currentImage1, 0, 0);
@@ -445,5 +450,66 @@ class Task2 {
         } else if (diffX > 0 && diffY > 0) {
             return "DOWN-RIGHT";
         }
+        return "UNDEFINED";
+    }
+
+    drawDirectionArrow(direction, x, y) {
+        push();
+        stroke(255);
+        strokeWeight(3);
+        fill(255);
+        translate(x, y);
+        let len = 30;
+        let head = 8;
+
+        let dx = 0;
+        let dy = 0;
+        switch (direction) {
+            case "LEFT":
+                dx = -1;
+                break;
+            case "RIGHT":
+                dx = 1;
+                break;
+            case "UP":
+                dy = -1;
+                break;
+            case "DOWN":
+                dy = 1;
+                break;
+            case "UP-LEFT":
+                dx = -0.7;
+                dy = -0.7;
+                break;
+            case "UP-RIGHT":
+                dx = 0.7;
+                dy = -0.7;
+                break;
+            case "DOWN-LEFT":
+                dx = -0.7;
+                dy = 0.7;
+                break;
+            case "DOWN-RIGHT":
+                dx = 0.7;
+                dy = 0.7;
+                break;
+        }
+
+        let endX = dx * len;
+        let endY = dy * len;
+        line(0, 0, endX, endY);
+
+        let angle = atan2(dy, dx);
+        if (dx !== 0 || dy !== 0) {
+            let arrowX = endX;
+            let arrowY = endY;
+            push();
+            translate(arrowX, arrowY);
+            rotate(angle);
+            triangle(0, 0, -head, head / 2, -head, -head / 2);
+            pop();
+        }
+
+        pop();
     }
 }
