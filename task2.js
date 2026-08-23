@@ -51,6 +51,7 @@ class Task2 {
         this.cachedProcessedImage2 = null;
         this.cachedCentroid1 = [0, 0];
         this.cachedCentroid2 = [0, 0];
+        this.cachedDirection = "UNDEFINED";
     }
 
     loadImages() {
@@ -155,9 +156,11 @@ class Task2 {
         if (this.centroidApplied) {
             this.cachedCentroid1 = this.computeCentroid(source1);
             this.cachedCentroid2 = this.computeCentroid(source2);
+            this.cachedDirection = this.decideMotion(this.cachedCentroid1, this.cachedCentroid2);
         } else {
             this.cachedCentroid1 = [0, 0];
             this.cachedCentroid2 = [0, 0];
+            this.cachedDirection = "UNDEFINED";
         }
     }
 
@@ -184,6 +187,9 @@ class Task2 {
                 text(`cY: ${centroidImg1[1]}`, currentImage1.width / 2, currentImage1.height + 40);
                 text(`cX: ${centroidImg2[0]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 20);
                 text(`cY: ${centroidImg2[1]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 40);
+
+                let direction = this.cachedDirection;
+                text(`Direction: ${direction}`, currentImage1.width / 2, currentImage1.height + 60); 
             }
 
             image(currentImage1, 0, 0);
@@ -416,5 +422,28 @@ class Task2 {
         }
 
         return [totalX / count, totalY / count];
+    }
+
+    decideMotion(centroidImage1, centroidImage2) {
+        let diffX = centroidImage2[0] - centroidImage1[0];
+        let diffY = centroidImage2[1] - centroidImage1[1];
+
+        if (diffX < 0 && diffY === 0) {
+            return "LEFT";
+        } else if (diffX > 0 && diffY === 0) {
+            return "RIGHT";
+        } else if (diffX === 0 && diffY < 0) {
+            return "UP";
+        } else if (diffX === 0 && diffY > 0) {
+            return "DOWN";
+        } else if (diffX < 0 && diffY < 0) {
+            return "UP-LEFT";
+        } else if (diffX < 0 && diffY > 0) {
+            return "DOWN-LEFT";
+        } else if (diffX > 0 && diffY < 0) {
+            return "UP-RIGHT";
+        } else if (diffX > 0 && diffY > 0) {
+            return "DOWN-RIGHT";
+        }
     }
 }
