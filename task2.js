@@ -32,6 +32,7 @@ class Task2 {
         this.thresholdApplied = false;
         this.thresholdSlider = createSlider(0, 255, 110, 1);
         this.thresholdSlider.position(150, 25);
+        this.thresholdSlider.input(() => this.onThresholdSliderMoved());
     }
 
     loadImages() {
@@ -40,6 +41,28 @@ class Task2 {
             this.processed_image.push(task2_images[i]);
         }
         this.imageLoaded = true;
+    }
+
+    onThresholdSliderMoved() {
+        if (!this.imageLoaded || !this.thresholdApplied || !this.centroidApplied) {
+            return;
+        }
+
+        let currentImage1 = this.processed_image[this.currentImageIndex];
+        let currentImage2 = this.processed_image[this.currentImageIndex + 1];
+
+        if (this.grayscaleApplied) {
+            currentImage1 = this.applyGrayscale(currentImage1);
+            currentImage2 = this.applyGrayscale(currentImage2);
+        }
+
+        if (this.edgeApplied) {
+            currentImage1 = this.applyEdgeDetection(currentImage1);
+            currentImage2 = this.applyEdgeDetection(currentImage2);
+        }
+
+        this.computeCentroid(currentImage1);
+        this.computeCentroid(currentImage2);
     }
 
     draw() {
@@ -235,33 +258,32 @@ class Task2 {
     }
 
     computeCentroid(img) {
-        // take pixels coordinates
-        // calculate total x & y
-        // divide to get avg
-        // calculate dx & dy by comparing two frames
+        // take pixels coordinates from the thresholded result
+        // add together all selected pixel x and y values
+        // divide by the number of selected pixels to get avg
         img.loadPixels();
 
         let totalX = 0;
         let totalY = 0;
-        let avgX = 0;
-        let avgY = 0;
+        let count = 0;
 
-        // read every pixel
         for (let x = 0; x < img.width; x++) {
             for (let y = 0; y < img.height; y++) {
-
                 let index = (x + y * img.width) * 4;
+                let pixelValue = img.pixels[index];
 
-                if (img.pixels[index] < 200) {
+                if (pixelValue > 0) {
                     totalX += x;
                     totalY += y;
+                    count++;
                 }
             }
         }
 
-        avgX = totalX / (img.width - 1);
-        avgY = totalY / (img.height - 1);
+        if (count === 0) {
+            return [0, 0];
+        }
 
-        return [avgX, avgY];
+        return [totalX / count, totalY / count];
     }
 }
