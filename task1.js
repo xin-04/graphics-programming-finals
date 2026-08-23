@@ -7,14 +7,17 @@ class Task1 {
 
     this.targetTime = 0;
     this.waitDuration = 2000;
+    this.fadeDuration = 500;
     this.timerStarted = false;
-    this.animationStarted = false;
 
-    this.thresholdApplied = false;
+    this.animationStarted = false;
+    this.transitioning = false;
+    this.transitionStart = 0;
+    this.transitionFrom = 0;
+    this.transitionTo = 0;
+    
     this.thresholdSlider = createSlider(0, 255, 110, 1);
     this.thresholdSlider.position(150, 25);
-
-    this.currentThreshold = thresholds[this.currentImageIndex][0];
   }
 
   loadImages() {
@@ -32,24 +35,56 @@ class Task1 {
 
     if (this.imageLoaded && this.processed_image.length > 0) {
       let currentImage = this.processed_image[this.currentImageIndex];
-      console.log(`Current showing image ${this.currentImageIndex}`);
+      let currentScale = min(width / currentImage.width, height / currentImage.height);
+      let currentW = currentImage.width * currentScale;
+      let currentH = currentImage.height * currentScale;
+      let currentX = (width - currentW) / 2;
+      let currentY = (height - currentH) / 2;
 
-      let scale = min(width / currentImage.width, height / currentImage.height);
-      let w = currentImage.width * scale;
-      let h = currentImage.height * scale;
+      if (this.animationStarted && this.transitioning) {
+        let now = millis();
+        let elapsed = constrain(now - this.transitionStart, 0, this.fadeDuration);
+        let alphaNext = map(elapsed, 0, this.fadeDuration, 0, 255);
+        let alphaCurrent = 255 - alphaNext;
 
-      image(currentImage, 0, 0, w, h);
+        let fromImage = this.processed_image[this.transitionFrom];
+        let toImage = this.processed_image[this.transitionTo];
+        let fromScale = min(width / fromImage.width, height / fromImage.height);
+        let fromW = fromImage.width * fromScale;
+        let fromH = fromImage.height * fromScale;
+        let toScale = min(width / toImage.width, height / toImage.height);
+        let toW = toImage.width * toScale;
+        let toH = toImage.height * toScale;
+
+        push();
+        imageMode(CENTER);
+        tint(255, alphaCurrent);
+        image(fromImage, width / 2, height / 2, fromW, fromH);
+        tint(255, alphaNext);
+        image(toImage, width / 2, height / 2, toW, toH);
+        pop();
+        noTint();
+
+        if (elapsed >= this.fadeDuration) {
+          this.transitioning = false;
+          this.currentImageIndex = this.transitionTo;
+          this.targetTime = millis() + this.waitDuration;
+        }
+      } else {
+        image(currentImage, currentX, currentY, currentW, currentH);
+      }
     }
 
-    if (this.animationStarted) {
+    if (this.animationStarted && !this.transitioning) {
       if (millis() >= this.targetTime) {
-        this.currentImageIndex = (this.currentImageIndex + 1) % task1_images.length;
-        this.targetTime = millis() + this.waitDuration;
+        this.startTransition();
       }
     }
 
     text("Task 1", 50, 50);
-    text(this.thresholdSlider.value(), 350, 50);
+    if (this.thresholdSlider) {
+      text(this.thresholdSlider.value(), 350, 50);
+    }
     this.drawModeSelection();
   }
 
@@ -89,8 +124,16 @@ class Task1 {
 
   startAnimation() {
     this.targetTime = millis() + this.waitDuration;
+    this.transitioning = false;
     this.timerStarted = true;
     this.animationStarted = true;
+  }
+
+  startTransition() {
+    this.transitioning = true;
+    this.transitionStart = millis();
+    this.transitionFrom = this.currentImageIndex;
+    this.transitionTo = (this.currentImageIndex + 1) % this.processed_image.length;
   }
 
   pauseAnimation() {
