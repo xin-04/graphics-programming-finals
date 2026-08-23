@@ -33,6 +33,24 @@ class Task2 {
         this.thresholdSlider = createSlider(0, 255, 110, 1);
         this.thresholdSlider.position(150, 25);
         this.thresholdSlider.input(() => this.onThresholdSliderMoved());
+
+        this.cachedImageIndex = -1;
+        this.cachedGrayscaleApplied = false;
+        this.cachedEdgeApplied = false;
+        this.cachedThresholdApplied = false;
+        this.cachedThresholdValue = -1;
+        this.cachedRawImage1 = null;
+        this.cachedRawImage2 = null;
+        this.cachedGrayscaleImage1 = null;
+        this.cachedGrayscaleImage2 = null;
+        this.cachedEdgeImage1 = null;
+        this.cachedEdgeImage2 = null;
+        this.cachedThresholdedImage1 = null;
+        this.cachedThresholdedImage2 = null;
+        this.cachedProcessedImage1 = null;
+        this.cachedProcessedImage2 = null;
+        this.cachedCentroid1 = [0, 0];
+        this.cachedCentroid2 = [0, 0];
     }
 
     loadImages() {
@@ -47,22 +65,100 @@ class Task2 {
         if (!this.imageLoaded || !this.thresholdApplied || !this.centroidApplied) {
             return;
         }
+        this.updateCachedProcessedImages();
+    }
 
-        let currentImage1 = this.processed_image[this.currentImageIndex];
-        let currentImage2 = this.processed_image[this.currentImageIndex + 1];
+    updateCachedProcessedImages() {
+        if (!this.imageLoaded || this.processed_image.length < 2) {
+            return;
+        }
+
+        let thresholdValue = this.thresholdSlider.value();
+        let previousThresholdValue = this.cachedThresholdValue;
+        let needsUpdate =
+            this.cachedImageIndex !== this.currentImageIndex ||
+            this.cachedGrayscaleApplied !== this.grayscaleApplied ||
+            this.cachedEdgeApplied !== this.edgeApplied ||
+            this.cachedThresholdApplied !== this.thresholdApplied ||
+            this.cachedThresholdValue !== thresholdValue;
+
+        if (!needsUpdate) {
+            return;
+        }
+
+        this.cachedImageIndex = this.currentImageIndex;
+        this.cachedGrayscaleApplied = this.grayscaleApplied;
+        this.cachedEdgeApplied = this.edgeApplied;
+        this.cachedThresholdApplied = this.thresholdApplied;
+        this.cachedThresholdValue = thresholdValue;
+
+        if (this.cachedThresholdValue !== previousThresholdValue) {
+            this.cachedThresholdedImage1 = null;
+            this.cachedThresholdedImage2 = null;
+        }
+
+        let raw1 = this.processed_image[this.currentImageIndex];
+        let raw2 = this.processed_image[this.currentImageIndex + 1];
+
+        if (this.cachedRawImage1 !== raw1) {
+            this.cachedRawImage1 = raw1;
+            this.cachedGrayscaleImage1 = null;
+            this.cachedEdgeImage1 = null;
+            this.cachedThresholdedImage1 = null;
+        }
+        if (this.cachedRawImage2 !== raw2) {
+            this.cachedRawImage2 = raw2;
+            this.cachedGrayscaleImage2 = null;
+            this.cachedEdgeImage2 = null;
+            this.cachedThresholdedImage2 = null;
+        }
+
+        let source1 = raw1;
+        let source2 = raw2;
 
         if (this.grayscaleApplied) {
-            currentImage1 = this.applyGrayscale(currentImage1);
-            currentImage2 = this.applyGrayscale(currentImage2);
+            if (!this.cachedGrayscaleImage1) {
+                this.cachedGrayscaleImage1 = this.computeGrayscaleImage(raw1);
+            }
+            if (!this.cachedGrayscaleImage2) {
+                this.cachedGrayscaleImage2 = this.computeGrayscaleImage(raw2);
+            }
+            source1 = this.cachedGrayscaleImage1;
+            source2 = this.cachedGrayscaleImage2;
         }
 
         if (this.edgeApplied) {
-            currentImage1 = this.applyEdgeDetection(currentImage1);
-            currentImage2 = this.applyEdgeDetection(currentImage2);
+            if (!this.cachedEdgeImage1) {
+                this.cachedEdgeImage1 = this.computeEdgeImage(source1);
+            }
+            if (!this.cachedEdgeImage2) {
+                this.cachedEdgeImage2 = this.computeEdgeImage(source2);
+            }
+            source1 = this.cachedEdgeImage1;
+            source2 = this.cachedEdgeImage2;
         }
 
-        this.computeCentroid(currentImage1);
-        this.computeCentroid(currentImage2);
+        if (this.thresholdApplied) {
+            if (!this.cachedThresholdedImage1 || this.cachedThresholdValue !== thresholdValue) {
+                this.cachedThresholdedImage1 = this.applyThresholdToEdge(source1, thresholdValue);
+            }
+            if (!this.cachedThresholdedImage2 || this.cachedThresholdValue !== thresholdValue) {
+                this.cachedThresholdedImage2 = this.applyThresholdToEdge(source2, thresholdValue);
+            }
+            source1 = this.cachedThresholdedImage1;
+            source2 = this.cachedThresholdedImage2;
+        }
+
+        this.cachedProcessedImage1 = source1;
+        this.cachedProcessedImage2 = source2;
+
+        if (this.centroidApplied) {
+            this.cachedCentroid1 = this.computeCentroid(source1);
+            this.cachedCentroid2 = this.computeCentroid(source2);
+        } else {
+            this.cachedCentroid1 = [0, 0];
+            this.cachedCentroid2 = [0, 0];
+        }
     }
 
     draw() {
@@ -77,19 +173,13 @@ class Task2 {
             // let w = currentImage.width * scale;
             // let h = currentImage.height * scale;
 
-            if (this.grayscaleApplied) {
-                currentImage1 = this.applyGrayscale(currentImage1);
-                currentImage2 = this.applyGrayscale(currentImage2);
-            }
-
-            if (this.edgeApplied) {
-                currentImage1 = this.applyEdgeDetection(currentImage1);
-                currentImage2 = this.applyEdgeDetection(currentImage2);
-            }
+            this.updateCachedProcessedImages();
+            currentImage1 = this.cachedProcessedImage1 || currentImage1;
+            currentImage2 = this.cachedProcessedImage2 || currentImage2;
 
             if (this.centroidApplied) {
-                let centroidImg1 = this.computeCentroid(currentImage1);
-                let centroidImg2 = this.computeCentroid(currentImage2);
+                let centroidImg1 = this.cachedCentroid1;
+                let centroidImg2 = this.cachedCentroid2;
                 text(`cX: ${centroidImg1[0]}`, currentImage1.width / 2, currentImage1.height + 20);
                 text(`cY: ${centroidImg1[1]}`, currentImage1.width / 2, currentImage1.height + 40);
                 text(`cX: ${centroidImg2[0]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 20);
@@ -189,16 +279,43 @@ class Task2 {
     }
 
     applyEdgeDetection(img) {
+        let edgeImg = this.computeEdgeImage(img);
+        if (this.thresholdApplied) {
+            return this.applyThresholdToEdge(edgeImg, this.thresholdSlider.value());
+        }
+        return edgeImg;
+    }
+
+    computeGrayscaleImage(img) {
+        let imgOut = createImage(img.width, img.height);
+        imgOut.loadPixels();
+        img.loadPixels();
+
+        for (let x = 0; x < imgOut.width; x++) {
+            for (let y = 0; y < imgOut.height; y++) {
+                let index = (x + y * imgOut.width) * 4;
+                let r = img.pixels[index + 0];
+                let g = img.pixels[index + 1];
+                let b = img.pixels[index + 2];
+                let gray = (r + g + b) / 3;
+
+                imgOut.pixels[index + 0] = imgOut.pixels[index + 1] = imgOut.pixels[index + 2] = gray;
+                imgOut.pixels[index + 3] = 255;
+            }
+        }
+        imgOut.updatePixels();
+        return imgOut;
+    }
+
+    computeEdgeImage(img) {
         let imgOut = createImage(img.width, img.height);
         let matrixSize = this.edgeMatrixX.length;
 
         imgOut.loadPixels();
         img.loadPixels();
 
-        // read every pixel
         for (let x = 0; x < imgOut.width; x++) {
             for (let y = 0; y < imgOut.height; y++) {
-
                 let index = (x + y * imgOut.width) * 4;
                 let cX = this.convolution(x, y, this.edgeMatrixX, matrixSize, img);
                 let cY = this.convolution(x, y, this.edgeMatrixY, matrixSize, img);
@@ -207,26 +324,40 @@ class Task2 {
                 cY = map(abs(cY[0]), 0, 1020, 0, 255);
                 let combo = cX + cY;
 
-                if (this.thresholdApplied) {
-                    if (combo > this.thresholdSlider.value()) {
-                        imgOut.pixels[index + 0] = combo;
-                        imgOut.pixels[index + 1] = combo;
-                        imgOut.pixels[index + 2] = combo;
-                        imgOut.pixels[index + 3] = 255;
-                    } else {
-                        imgOut.pixels[index + 0] = 0;
-                        imgOut.pixels[index + 1] = 0;
-                        imgOut.pixels[index + 2] = 0;
-                        imgOut.pixels[index + 3] = 255;
-                    }
-                } else {
-                    imgOut.pixels[index + 0] = combo;
-                    imgOut.pixels[index + 1] = combo;
-                    imgOut.pixels[index + 2] = combo;
-                    imgOut.pixels[index + 3] = 255;
-                }
+                imgOut.pixels[index + 0] = combo;
+                imgOut.pixels[index + 1] = combo;
+                imgOut.pixels[index + 2] = combo;
+                imgOut.pixels[index + 3] = 255;
             }
         }
+        imgOut.updatePixels();
+        return imgOut;
+    }
+
+    applyThresholdToEdge(img, thresholdValue) {
+        let imgOut = createImage(img.width, img.height);
+
+        imgOut.loadPixels();
+        img.loadPixels();
+
+        let index = 0;
+        for (let y = 0; y < img.height; y++) {
+            for (let x = 0; x < img.width; x++) {
+                let value = img.pixels[index];
+                if (value > thresholdValue) {
+                    imgOut.pixels[index + 0] = value;
+                    imgOut.pixels[index + 1] = value;
+                    imgOut.pixels[index + 2] = value;
+                } else {
+                    imgOut.pixels[index + 0] = 0;
+                    imgOut.pixels[index + 1] = 0;
+                    imgOut.pixels[index + 2] = 0;
+                }
+                imgOut.pixels[index + 3] = 255;
+                index += 4;
+            }
+        }
+
         imgOut.updatePixels();
         return imgOut;
     }
