@@ -41,6 +41,7 @@ class Task1 {
       let currentX = (width - currentW) / 2;
       let currentY = (height - currentH) / 2;
 
+      // FADE IN & OUT LOGIC
       if (this.animationStarted && this.transitioning) {
         let now = millis();
         let elapsed = constrain(now - this.transitionStart, 0, this.fadeDuration);
@@ -49,9 +50,11 @@ class Task1 {
 
         let fromImage = this.processed_image[this.transitionFrom];
         let toImage = this.processed_image[this.transitionTo];
+
         let fromScale = min(width / fromImage.width, height / fromImage.height);
         let fromW = fromImage.width * fromScale;
         let fromH = fromImage.height * fromScale;
+        
         let toScale = min(width / toImage.width, height / toImage.height);
         let toW = toImage.width * toScale;
         let toH = toImage.height * toScale;
@@ -60,6 +63,7 @@ class Task1 {
         imageMode(CENTER);
         tint(255, alphaCurrent);
         image(fromImage, width / 2, height / 2, fromW, fromH);
+
         tint(255, alphaNext);
         image(toImage, width / 2, height / 2, toW, toH);
         pop();
@@ -70,8 +74,32 @@ class Task1 {
           this.currentImageIndex = this.transitionTo;
           this.targetTime = millis() + this.waitDuration;
         }
+      
+      // ZOOM IN & OUT LOGIC
       } else {
-        image(currentImage, currentX, currentY, currentW, currentH);
+        let baseScale = min(width / currentImage.width, height / currentImage.height);
+        let baseW = currentImage.width * baseScale;
+        let baseH = currentImage.height * baseScale;
+
+        // Calculate progress of current hold duration (0.0 - 1.0)
+        let timeInState = millis() - (this.targetTime - this.waitDuration);
+        let progress = constrain(timeInState / this.waitDuration, 0, 1);
+
+        // Determine target zoom (in / out) based on index
+        let isEvenIndex = (this.currentImageIndex % 2 === 0);
+        let startZoom = isEvenIndex ? 1.0 : 1.4;
+        let endZoom = isEvenIndex ? 1.4 : 1.0;
+
+        // Smoothly interpolate current zoom level
+        let zoomFactor = lerp(startZoom, endZoom, progress);
+
+        let zoomW = baseW * zoomFactor;
+        let zoomH = baseH * zoomFactor;
+        let zoomX = (width - zoomW) / 2;
+        let zoomY = (height - zoomH) / 2;
+
+        image(currentImage, zoomX, zoomY, zoomW, zoomH);
+        
       }
     }
 
@@ -197,5 +225,6 @@ class Task1 {
   }
 
   cleanImageEdges(img, thresholds) {
+
   }
 }
