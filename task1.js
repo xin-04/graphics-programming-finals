@@ -15,6 +15,7 @@ class Task1 {
     this.transitionStart = 0;
     this.transitionFrom = 0;
     this.transitionTo = 0;
+    this.holdStartTime = 0;
     
     this.thresholdSlider = createSlider(0, 255, 110, 1);
     this.thresholdSlider.position(150, 25);
@@ -29,17 +30,28 @@ class Task1 {
     this.imageLoaded = true;
   }
 
+  startAnimation() {
+    this.transitioning = false;
+    this.animationStarted = true;
+
+    this.timerStarted = true;
+    this.holdStartTime = millis();
+    this.targetTime = this.holdStartTime + this.waitDuration;
+  }
+
+  startTransition() {
+    this.transitioning = true;
+    this.transitionStart = millis();
+    this.transitionFrom = this.currentImageIndex;
+    this.transitionTo = (this.currentImageIndex + 1) % this.processed_image.length;
+  }
+
   draw() {
     background(this.bgColour);
     fill("#34ebe1");
 
     if (this.imageLoaded && this.processed_image.length > 0) {
       let currentImage = this.processed_image[this.currentImageIndex];
-      let currentScale = min(width / currentImage.width, height / currentImage.height);
-      let currentW = currentImage.width * currentScale;
-      let currentH = currentImage.height * currentScale;
-      let currentX = (width - currentW) / 2;
-      let currentY = (height - currentH) / 2;
 
       // FADE IN & OUT LOGIC
       if (this.animationStarted && this.transitioning) {
@@ -51,28 +63,46 @@ class Task1 {
         let fromImage = this.processed_image[this.transitionFrom];
         let toImage = this.processed_image[this.transitionTo];
 
+        // Base unscaled bounds
         let fromScale = min(width / fromImage.width, height / fromImage.height);
-        let fromW = fromImage.width * fromScale;
-        let fromH = fromImage.height * fromScale;
+        let fromBaseW = fromImage.width * fromScale;
+        let fromBaseH = fromImage.height * fromScale;
         
         let toScale = min(width / toImage.width, height / toImage.height);
-        let toW = toImage.width * toScale;
-        let toH = toImage.height * toScale;
+        let toBaseW = toImage.width * toScale;
+        let toBaseH = toImage.height * toScale;
+
+        // Keep fromImage's latest zoom factor
+        let wasFromEven = (this.transitionFrom % 2 === 0);
+        let fromEndZoom = wasFromEven ? 1.4 : 0.7;
+        let fromW = fromBaseW * fromEndZoom;
+        let fromH = fromBaseH * fromEndZoom;
+        let fromX = (width - fromW) / 2;
+        let fromY = (height - fromH) / 2;
+
+        // Start toImage with initial zoom factor
+        // let isToEven = (this.transitionTo % 2 === 0);
+        // let toStartZoom = isToEven ? 1.0 : 1.4;
+        let toW = toBaseW * 1.0;
+        let toH = toBaseH * 1.0;
+        let toX = (width - toW) / 2;
+        let toY = (height - toH) / 2;
 
         push();
-        imageMode(CENTER);
         tint(255, alphaCurrent);
-        image(fromImage, width / 2, height / 2, fromW, fromH);
+        image(fromImage, fromX, fromY, fromW, fromH);
 
         tint(255, alphaNext);
-        image(toImage, width / 2, height / 2, toW, toH);
+        image(toImage, toX, toY, toW, toH);
         pop();
-        noTint();
 
         if (elapsed >= this.fadeDuration) {
           this.transitioning = false;
           this.currentImageIndex = this.transitionTo;
-          this.targetTime = millis() + this.waitDuration;
+
+          // Hold the image for a moment
+          this.holdStartTime = millis();
+          this.targetTime = this.holdStartTime + this.waitDuration;
         }
       
       // ZOOM IN & OUT LOGIC
@@ -81,14 +111,15 @@ class Task1 {
         let baseW = currentImage.width * baseScale;
         let baseH = currentImage.height * baseScale;
 
-        // Calculate progress of current hold duration (0.0 - 1.0)
-        let timeInState = millis() - (this.targetTime - this.waitDuration);
+        // Calculate progress from holdStartTime
+        let holdStart = this.holdStartTime || (this.targetTime - this.waitDuration);
+        let timeInState = millis() - holdStart;
         let progress = constrain(timeInState / this.waitDuration, 0, 1);
 
         // Determine target zoom (in / out) based on index
         let isEvenIndex = (this.currentImageIndex % 2 === 0);
-        let startZoom = isEvenIndex ? 1.0 : 1.4;
-        let endZoom = isEvenIndex ? 1.4 : 1.0;
+        let startZoom = 1.0;
+        let endZoom = isEvenIndex ? 1.4 : 0.7;
 
         // Smoothly interpolate current zoom level
         let zoomFactor = lerp(startZoom, endZoom, progress);
@@ -99,7 +130,6 @@ class Task1 {
         let zoomY = (height - zoomH) / 2;
 
         image(currentImage, zoomX, zoomY, zoomW, zoomH);
-        
       }
     }
 
@@ -150,19 +180,7 @@ class Task1 {
     textStyle(NORMAL);
   }
 
-  startAnimation() {
-    this.targetTime = millis() + this.waitDuration;
-    this.transitioning = false;
-    this.timerStarted = true;
-    this.animationStarted = true;
-  }
-
-  startTransition() {
-    this.transitioning = true;
-    this.transitionStart = millis();
-    this.transitionFrom = this.currentImageIndex;
-    this.transitionTo = (this.currentImageIndex + 1) % this.processed_image.length;
-  }
+  
 
   pauseAnimation() {
     this.targetTime = 0;
