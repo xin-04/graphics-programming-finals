@@ -80,51 +80,42 @@ class Task1 {
     this.drawModeSelection();
   }  
 
+  getFittedBounds(img, zoomFactor = 1.0) {
+    let baseScale = min(width / img.width, height / img.height);
+    let w = img.width * baseScale * zoomFactor;
+    let h = img.height * baseScale * zoomFactor;
+    let x = (width - w) / 2;
+    let y = (height - h) / 2;
+    return { x, y, w, h };
+  }
+
   animateFade() {
-    let now = millis();
-    let elapsed = constrain(now - this.transitionStart, 0, this.fadeDuration);
+    let elapsed = constrain(millis() - this.transitionStart, 0, this.fadeDuration);
     let alphaNext = map(elapsed, 0, this.fadeDuration, 0, 255);
     let alphaCurrent = 255 - alphaNext;
 
-    let fromImage = this.processed_image[this.transitionFrom];
-    let toImage = this.processed_image[this.transitionTo];
+    let fromImg = this.processed_image[this.transitionFrom];
+    let toImg = this.processed_image[this.transitionTo];
 
-    // Base unscaled bounds
-    let fromScale = min(width / fromImage.width, height / fromImage.height);
-    let fromBaseW = fromImage.width * fromScale;
-    let fromBaseH = fromImage.height * fromScale;
-
-    let toScale = min(width / toImage.width, height / toImage.height);
-    let toBaseW = toImage.width * toScale;
-    let toBaseH = toImage.height * toScale;
-
-    // Keep fromImage's latest zoom factor
+    // fromImg will keep its zoom level when exiting
     let wasFromEven = (this.transitionFrom % 2 === 0);
     let fromEndZoom = wasFromEven ? 1.4 : 0.7;
-    let fromW = fromBaseW * fromEndZoom;
-    let fromH = fromBaseH * fromEndZoom;
-    let fromX = (width - fromW) / 2;
-    let fromY = (height - fromH) / 2;
+    let fromBounds = this.getFittedBounds(fromImg, fromEndZoom);
 
-    // toImage always fades in at original size (1.0)
-    let toW = toBaseW * 1.0;
-    let toH = toBaseH * 1.0;
-    let toX = (width - toW) / 2;
-    let toY = (height - toH) / 2;
+    // toImg always starts at 1.0 zoom
+    let toBounds = this.getFittedBounds(toImg, 1.0);
 
     push();
     tint(255, alphaCurrent);
-    image(fromImage, fromX, fromY, fromW, fromH);
+    image(fromImg, fromBounds.x, fromBounds.y, fromBounds.w, fromBounds.h);
 
     tint(255, alphaNext);
-    image(toImage, toX, toY, toW, toH);
+    image(toImg, toBounds.x, toBounds.y, toBounds.w, toBounds.h);
     pop();
 
     if (elapsed >= this.fadeDuration) {
       this.transitioning = false;
       this.currentImageIndex = this.transitionTo;
-
-      // Hold the image for a moment
       this.holdStartTime = millis();
       this.targetTime = this.holdStartTime + this.waitDuration;
     }
@@ -132,10 +123,6 @@ class Task1 {
 
   animateZoom() {
     let currentImage = this.processed_image[this.currentImageIndex];
-
-    let baseScale = min(width / currentImage.width, height / currentImage.height);
-    let baseW = currentImage.width * baseScale;
-    let baseH = currentImage.height * baseScale;
 
     // Calculate progress from holdStartTime
     let holdStart = this.holdStartTime || (this.targetTime - this.waitDuration);
@@ -146,16 +133,19 @@ class Task1 {
     let isEvenIndex = (this.currentImageIndex % 2 === 0);
     let startZoom = 1.0;
     let endZoom = isEvenIndex ? 1.4 : 0.7;
-
     // Smoothly interpolate current zoom level
     let zoomFactor = lerp(startZoom, endZoom, progress);
 
-    let zoomW = baseW * zoomFactor;
-    let zoomH = baseH * zoomFactor;
-    let zoomX = (width - zoomW) / 2;
-    let zoomY = (height - zoomH) / 2;
+    let bounds = this.getFittedBounds(currentImage, zoomFactor);
+    image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
+  }
 
-    image(currentImage, zoomX, zoomY, zoomW, zoomH);
+  updateAnimationTimer() {
+    if (this.animationStarted && !this.transitioning) {
+      if (millis() >= this.targetTime) {
+        this.startTransition();
+      }
+    }
   }
 
   drawModeSelection() {
