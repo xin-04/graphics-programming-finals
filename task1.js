@@ -55,29 +55,17 @@ class Task1 {
     fill("#34ebe1");
 
     if (this.imageLoaded && this.processed_image.length > 0) {
-      let currentImage = this.processed_image[this.currentImageIndex];
-
       // FADE IN & OUT LOGIC
       if (this.animationStarted && this.transitioning) {
         this.animateFade();
-      
       // ZOOM IN & OUT LOGIC
       } else {
         this.animateZoom();
       }
     }
 
-    if (this.animationStarted && !this.transitioning) {
-      if (millis() >= this.targetTime) {
-        this.startTransition();
-      }
-    }
-
-    text("Task 1", 50, 50);
-    if (this.thresholdSlider) {
-      text(this.thresholdSlider.value(), 350, 50);
-    }
-    this.drawModeSelection();
+    this.updateAnimationTimer();
+    this.drawOverlayUI();
   }  
 
   getFittedBounds(img, zoomFactor = 1.0) {
@@ -146,6 +134,14 @@ class Task1 {
         this.startTransition();
       }
     }
+  }
+
+  drawOverlayUI() {
+    text("Task 1", 50, 50);
+    if (this.thresholdSlider) {
+      text(this.thresholdSlider.value(), 350, 50);
+    }
+    this.drawModeSelection();
   }
 
   drawModeSelection() {
