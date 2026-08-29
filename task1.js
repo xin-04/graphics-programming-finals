@@ -57,7 +57,7 @@ class Task1 {
   }
 
   draw() {
-    background(this.bgColour);
+    //background(this.bgColour);
     fill("#34ebe1");
     imageMode(CORNER);
 
@@ -66,9 +66,12 @@ class Task1 {
       // FADE IN & OUT LOGIC
       if (this.animationStarted && this.transitioning) {
         this.animateFade();
-      // ZOOM IN & OUT LOGIC
-      } else {
+      } else if (this.animationStarted) {
+        // ZOOM IN & OUT LOGIC when animation has been started
         this.animateZoom();
+      } else {
+        // Show first image at rest until animation starts
+        this.drawRestingImage();
       }
     }
 
@@ -172,6 +175,13 @@ class Task1 {
     }
   }
 
+  drawRestingImage() {
+    let currentImage = this.processed_image[this.currentImageIndex];
+    let currentTrim = this.imageTrims[this.currentImageIndex] || { left: 0, right: 0 };
+    let bounds = this.getFittedBounds(currentImage, 1.0, 0.0, true, currentTrim);
+    image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
+  }
+
   drawOverlayUI() {
     text("Task 1", 50, 50);
     if (this.thresholdSlider) {
@@ -209,8 +219,6 @@ class Task1 {
     textAlign(CENTER, CENTER);
     textStyle(NORMAL);
   }
-
-  
 
   pauseAnimation() {
     this.targetTime = 0;
