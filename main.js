@@ -25,7 +25,7 @@ thresholds.push([0, 255, 255, 255, 9]);
 thresholds.push([0, 244, 235, 230, 27]);
 
 function preload() {
-  bgImg = loadImage('assets/task1/background.jpg');
+  bgImg = loadImage('assets/task1/background.png');
   for (let i = 1; i < 9; i++) {
     let img = loadImage(`assets/task1/${i}.jpg`);
     task1_images.push(img);
@@ -49,7 +49,7 @@ function setup() {
 }
 
 function draw() {
-  background(bgImg);
+  // background(bgImg);
   if (currentMenu === 0) {
     task1.draw();
   }

@@ -18,6 +18,7 @@ class Task1 {
     this.transitionTo = 0;
     this.holdStartTime = 0;
     this.panProgress = 0;
+    this.bgPanProgress = 0;
     
     this.thresholdSlider = createSlider(0, 255, 110, 1);
     this.thresholdSlider.position(150, 25);
@@ -57,7 +58,8 @@ class Task1 {
   }
 
   draw() {
-    //background(this.bgColour);
+    background(this.bgColour);
+    this.drawBackground();
     fill("#34ebe1");
     imageMode(CORNER);
 
@@ -104,6 +106,10 @@ class Task1 {
     return { x, y, w, h };
   }
 
+  getImageScale(index) {
+    return index === 4 ? 0.8 : 1.0;
+  }
+
   animateFade() {
     imageMode(CORNER);
     let elapsed = constrain(millis() - this.transitionStart, 0, this.fadeDuration);
@@ -119,12 +125,14 @@ class Task1 {
 
     let fromTrim = this.imageTrims[this.transitionFrom] || { left: 0, right: 0 };
     let toTrim = this.imageTrims[this.transitionTo] || { left: 0, right: 0 };
+    let fromScale = this.getImageScale(this.transitionFrom);
+    let toScale = this.getImageScale(this.transitionTo);
 
     // fromImg will end animation on the right side
-    let fromBounds = this.getFittedBounds(fromImg, fromEndZoom, 1.0, false, fromTrim);
+    let fromBounds = this.getFittedBounds(fromImg, fromEndZoom * fromScale, 1.0, false, fromTrim);
 
     // toImg always starts on the left side, explicitly anchoring visible content
-    let toBounds = this.getFittedBounds(toImg, 1.0, 0.0, true, toTrim);
+    let toBounds = this.getFittedBounds(toImg, 1.0 * toScale, 0.0, true, toTrim);
 
     push();
     tint(255, alphaCurrent);
@@ -139,6 +147,7 @@ class Task1 {
       this.currentImageIndex = this.transitionTo;
       this.holdStartTime = millis();
       this.panProgress = 0;
+      this.bgPanProgress = 0;
       this.targetTime = this.holdStartTime + this.waitDuration;
     }
   }
@@ -159,12 +168,16 @@ class Task1 {
     let isEvenIndex = (this.currentImageIndex % 2 === 0);
     let startZoom = 1.0;
     let endZoom = isEvenIndex ? 1.4 : 0.7;
+    let indexScale = this.getImageScale(this.currentImageIndex);
     // Smoothly interpolate current zoom level
-    let zoomFactor = lerp(startZoom, endZoom, progress);
+    let zoomFactor = lerp(startZoom, endZoom, progress) * indexScale;
+    this.bgPanProgress = progress;
 
     // Moves continuously from left to right while scaling
     let bounds = this.getFittedBounds(currentImage, zoomFactor, progress, progress <= 0.001, currentTrim);
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
+
+    this.drawMovingText(progress);
   }
 
   updateAnimationTimer() {
@@ -178,8 +191,38 @@ class Task1 {
   drawRestingImage() {
     let currentImage = this.processed_image[this.currentImageIndex];
     let currentTrim = this.imageTrims[this.currentImageIndex] || { left: 0, right: 0 };
-    let bounds = this.getFittedBounds(currentImage, 1.0, 0.0, true, currentTrim);
+    let indexScale = this.getImageScale(this.currentImageIndex);
+    let bounds = this.getFittedBounds(currentImage, 1.0 * indexScale, 0.0, true, currentTrim);
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
+  }
+
+  drawMovingText(progress) {
+    let movingText = "CM2030";
+    let textWidthValue = textWidth(movingText);
+    let x = lerp(width + textWidthValue / 2, -textWidthValue / 2, progress);
+
+    push();
+    textAlign(CENTER, CENTER);
+    textSize(32);
+    textStyle(BOLD);
+    fill(255, 235, 180);
+    noStroke();
+    text(movingText, x, height - 55);
+    pop();
+  }
+
+  drawBackground() {
+    if (typeof bgImg === 'undefined' || !bgImg) {
+      return;
+    }
+
+    //let baseScale = max(width / bgImg.width, height / bgImg.height);
+    let baseScale = 1.5;
+    let w = bgImg.width * baseScale;
+    let h = bgImg.height * baseScale;
+    let x = lerp(0, width - w, this.bgPanProgress);
+    let y = (height - h) / 2;
+    image(bgImg, x, y, w, h);
   }
 
   drawOverlayUI() {
