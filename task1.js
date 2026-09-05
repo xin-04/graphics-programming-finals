@@ -197,7 +197,7 @@ class Task1 {
   }
 
   drawMovingText(progress) {
-    let movingText = "CM2030";
+    let movingText = "CM2030 Graphics Programming";
     let textWidthValue = textWidth(movingText);
     let x = lerp(width + textWidthValue / 2, -textWidthValue / 2, progress);
 

@@ -1,3 +1,7 @@
+// Issue faced: block-based estimation searchRange
+
+// TODO: optimise computeCentroid, right now it doesn't trigger the first time when i press the button
+
 class Task2 {
     constructor() {
         this.bgColour = 240;
@@ -52,6 +56,14 @@ class Task2 {
         this.cachedCentroid1 = [0, 0];
         this.cachedCentroid2 = [0, 0];
         this.cachedDirection = "UNDEFINED";
+
+        // EXTENSION
+        this.blockGridSize = 4;
+        this.blockSize = 16;
+        this.searchRange = 15;
+        this.minimumBlockContentRatio = 0.05;
+        this.blockMotionVectors = [];
+        this.blockMotionDirection = "UNDEFINED";
     }
 
     loadImages() {
@@ -153,6 +165,14 @@ class Task2 {
         this.cachedProcessedImage1 = source1;
         this.cachedProcessedImage2 = source2;
 
+        if (this.thresholdApplied) {
+            this.blockMotionVectors = this.applyBlockMotionEstimation(source1, source2);
+            this.blockMotionDirection = this.aggregateBlockMotion(this.blockMotionVectors);
+        } else {
+            this.blockMotionVectors = [];
+            this.blockMotionDirection = "UNDEFINED";
+        }
+
         if (this.centroidApplied) {
             this.cachedCentroid1 = this.computeCentroid(source1);
             this.cachedCentroid2 = this.computeCentroid(source2);
@@ -199,6 +219,7 @@ class Task2 {
 
             image(currentImage1, 0, 0);
             image(currentImage2, width / 2, 0);
+            this.drawBlockMotionVectors(width / 2);
         }
 
         if (this.animationStarted) {
@@ -399,6 +420,155 @@ class Task2 {
         return [totalRed, totalGreen, totalBlue];
     }
 
+    divideIntoBlock(img) {
+        let blocks = [];
+        let blockSize = this.blockGridSize;
+
+        for (let row = 0; row < blockSize; row++) {
+            let y = floor(row * img.height / blockSize);
+            let nextY = floor((row + 1) * img.height / blockSize);
+
+            for (let column = 0; column < blockSize; column++) {
+                let x = floor(column * img.width / blockSize);
+                let nextX = floor((column + 1) * img.width / blockSize);
+
+                blocks.push({
+                    x: x,
+                    y: y,
+                    w: nextX - x,
+                    h: nextY - y
+                });
+            }
+        }
+
+        return blocks;
+    }
+
+    aggregateBlockMotion(vectors) {
+        let weightedDX = 0;
+        let weightedDY = 0;
+        let totalWeight = 0;
+
+        for (let vector of vectors) {
+            weightedDX += vector.dx * vector.pixelCount;
+            weightedDY += vector.dy * vector.pixelCount;
+            totalWeight += vector.pixelCount;
+        }
+
+        if (totalWeight === 0) {
+            return "UNDEFINED";
+        }
+
+        let averageDX = weightedDX / totalWeight;
+        let averageDY = weightedDY / totalWeight;
+        return this.decideMotion([0, 0], [averageDX, averageDY]);
+    }
+
+    drawBlockMotionVectors(imageOffsetX = 0) {
+        for (let vector of this.blockMotionVectors) {
+            let direction = this.decideMotion([0, 0], [vector.dx, vector.dy]);
+            if (direction !== "UNDEFINED") {
+                this.drawDirectionArrow(
+                    direction,
+                    imageOffsetX + vector.x,
+                    vector.y,
+                    16
+                );
+            }
+        }
+    }
+
+    // sad = Sum of Absolute Difference
+    applyBlockMotionEstimation(referenceFrame, targetFrame, blockSize = this.blockSize, searchRange = this.searchRange) {
+        if (!referenceFrame || !targetFrame ||
+            referenceFrame.width !== targetFrame.width ||
+            referenceFrame.height !== targetFrame.height) {
+            return [];
+        }
+
+        if (blockSize <= 0 || searchRange < 0) {
+            return [];
+        }
+
+        referenceFrame.loadPixels();
+        targetFrame.loadPixels();
+
+        let vectors = [];
+
+        // bx = blockX; by = blockY
+        for (let by = 0; by < referenceFrame.height; by += blockSize) {
+            for (let bx = 0; bx < referenceFrame.width; bx += blockSize) {
+                let blockWidth = min(blockSize, referenceFrame.width - bx);
+                let blockHeight = min(blockSize, referenceFrame.height - by);
+                let blockArea = blockWidth * blockHeight;
+                let pixelCount = 0;
+
+                for (let y = 0; y < blockHeight; y++) {
+                    for (let x = 0; x < blockWidth; x++) {
+                        let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
+                        if (referenceFrame.pixels[referenceIndex] > 0) {
+                            pixelCount++;
+                        }
+                    }
+                }
+
+                let minimumPixelCount = Math.ceil(blockArea * this.minimumBlockContentRatio);
+                if (pixelCount < minimumPixelCount || pixelCount === blockArea) {
+                    continue;
+                }
+
+                let bestSAD = Infinity;
+                let bestOffset = { dx: 0, dy: 0 };
+
+                for (let oy = -searchRange; oy <= searchRange; oy++) {
+                    for (let ox = -searchRange; ox <= searchRange; ox++) {
+                        let candidateX = bx + ox;
+                        let candidateY = by + oy;
+
+                        if (candidateX < 0 || candidateY < 0 ||
+                            candidateX + blockWidth > targetFrame.width ||
+                            candidateY + blockHeight > targetFrame.height) {
+                            continue;
+                        }
+
+                        let sad = 0;
+                        candidatePixels:
+                        for (let y = 0; y < blockHeight; y++) {
+                            for (let x = 0; x < blockWidth; x++) {
+                                let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
+                                let targetIndex = ((candidateY + y) * targetFrame.width + candidateX + x) * 4;
+                                sad += abs(referenceFrame.pixels[referenceIndex] - targetFrame.pixels[targetIndex]);
+
+                                if (sad >= bestSAD) {
+                                    break candidatePixels;
+                                }
+                            }
+                        }
+
+                        if (sad < bestSAD) {
+                            bestSAD = sad;
+                            bestOffset = { dx: ox, dy: oy };
+                        }
+                    }
+                }
+
+                console.log(`block(${bx},${by}) dx=${bestOffset.dx} dy=${bestOffset.dy} sad=${bestSAD}`);
+                
+                vectors.push({
+                    x: bx,
+                    y: by,
+                    dx: bestOffset.dx,
+                    dy: bestOffset.dy,
+                    sad: bestSAD,
+                    pixelCount: pixelCount
+                });
+            }
+        }
+
+        this.blockMotionVectors = vectors;
+        return vectors;
+    }
+
     computeCentroid(img) {
         // take pixels coordinates from the thresholded result
         // add together all selected pixel x and y values
@@ -426,6 +596,7 @@ class Task2 {
             return [0, 0];
         }
 
+        console.log(`Centroid dx=${this.cachedCentroid2[0] - this.cachedCentroid1[0]}, dy=${this.cachedCentroid2[1] - this.cachedCentroid1[1]}`);
         return [totalX / count, totalY / count];
     }
 
@@ -453,14 +624,14 @@ class Task2 {
         return "UNDEFINED";
     }
 
-    drawDirectionArrow(direction, x, y) {
+    drawDirectionArrow(direction, x, y, length = 30) {
         push();
         stroke(255);
         strokeWeight(3);
         fill(255);
         translate(x, y);
-        let len = 30;
-        let head = 8;
+        let len = length;
+        let head = length * 0.27;
 
         let dx = 0;
         let dy = 0;
