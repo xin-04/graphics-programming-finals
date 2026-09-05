@@ -28,6 +28,7 @@ class Task2 {
         this.waitDuration = 2000;
         this.timerStarted = false;
         this.animationStarted = false;
+        this.directionShowed = true;
 
         this.grayscaleApplied = false;
         this.edgeApplied = false;
@@ -492,8 +493,8 @@ class Task2 {
             if (direction !== "UNDEFINED") {
                 this.drawDirectionArrow(
                     direction,
-                    imageOffsetX + vector.x,
-                    vector.y,
+                    imageOffsetX + vector.x + vector.dx,
+                    vector.y + vector.dy,
                     16
                 );
             }
