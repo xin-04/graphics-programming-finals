@@ -26,7 +26,6 @@ class Task2 {
 
         this.targetTime = 0;
         this.waitDuration = 2000;
-        this.timerStarted = false;
         this.animationStarted = false;
         this.directionShowed = false;
 
@@ -46,8 +45,6 @@ class Task2 {
             ];
         
         this.centroidApplied = false;
-        this.avgX = 0;
-        this.avgY = 0;
         
         this.thresholdApplied = false;
         this.thresholdSlider = createSlider(0, 255, 110, 1);
@@ -74,7 +71,6 @@ class Task2 {
         this.cachedDirection = "UNDEFINED";
 
         // EXTENSION
-        this.blockGridSize = 4;
         this.blockSize = 16;
 
         // Drawback: huge performance cost
@@ -268,7 +264,7 @@ class Task2 {
 
     drawModeSelection() {
         let panelW = 215;
-        let panelH = 200;
+        let panelH = 220;
         let panelX = width - panelW - 20;
         let panelY = height - panelH - 20;
 
@@ -292,8 +288,9 @@ class Task2 {
         text("e: apply edge filter", panelX + 14, panelY + 100);
         text("t: apply thresholding", panelX + 14, panelY + 120);
         text("n: compute centroid", panelX + 14, panelY + 140);
-        text("s: start animation", panelX + 14, panelY + 160);
-        text("p: pause animation", panelX + 14, panelY + 180);
+        text("d: display arrows", panelX + 14, panelY + 160);
+        text("s: start animation", panelX + 14, panelY + 180);
+        text("p: pause animation", panelX + 14, panelY + 200);
 
         pop();
         textAlign(CENTER, CENTER);
@@ -302,51 +299,16 @@ class Task2 {
 
     startAnimation() {
         this.targetTime = millis() + this.waitDuration;
-        this.timerStarted = true;
         this.animationStarted = true;
     }
 
     pauseAnimation() {
         this.targetTime = 0;
-        this.timerStarted = false;
         this.animationStarted = false;
     }
 
     loadPanorama() {
         this.bgColour = "#b8e0da";
-    }
-
-    applyGrayscale(img) {
-        let imgOut = createImage(img.width, img.height);
-        imgOut.loadPixels();
-        img.loadPixels();
-
-        for (let x = 0; x < imgOut.width; x++) {
-            for (let y = 0; y < imgOut.height; y++) {
-
-                let index = (x + y * imgOut.width) * 4;
-
-                let r = img.pixels[index + 0];
-                let g = img.pixels[index + 1];
-                let b = img.pixels[index + 2];
-
-                let gray = (r + g + b) / 3; // simple
-                // let gray = r * 0.299 + g * 0.587 + b * 0.114; // LUMA ratios 
-
-                imgOut.pixels[index + 0] = imgOut.pixels[index + 1] = imgOut.pixels[index + 2] = gray;
-                imgOut.pixels[index + 3] = 255;
-            }
-        }
-        imgOut.updatePixels();
-        return imgOut;
-    }
-
-    applyEdgeDetection(img) {
-        let edgeImg = this.computeEdgeImage(img);
-        if (this.thresholdApplied) {
-            return this.applyThresholdToEdge(edgeImg, this.thresholdSlider.value());
-        }
-        return edgeImg;
     }
 
     computeGrayscaleImage(img) {
@@ -449,30 +411,6 @@ class Task2 {
         }
         // return the new color as an array
         return [totalRed, totalGreen, totalBlue];
-    }
-
-    divideIntoBlock(img) {
-        let blocks = [];
-        let blockSize = this.blockGridSize;
-
-        for (let row = 0; row < blockSize; row++) {
-            let y = floor(row * img.height / blockSize);
-            let nextY = floor((row + 1) * img.height / blockSize);
-
-            for (let column = 0; column < blockSize; column++) {
-                let x = floor(column * img.width / blockSize);
-                let nextX = floor((column + 1) * img.width / blockSize);
-
-                blocks.push({
-                    x: x,
-                    y: y,
-                    w: nextX - x,
-                    h: nextY - y
-                });
-            }
-        }
-
-        return blocks;
     }
 
     aggregateBlockMotion(vectors) {
