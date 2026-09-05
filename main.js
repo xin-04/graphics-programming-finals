@@ -153,7 +153,7 @@ function keyPressed() {
   }
 
   // Key 'd': display detected direction
-  if (keyCode === 68 && currentMenu === 1 && task2.thresholdApplied) {
+  if (keyCode === 68 && currentMenu === 1 && task2.centroidApplied) {
     task2.directionShowed = true;
   }
 }

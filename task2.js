@@ -28,7 +28,7 @@ class Task2 {
         this.waitDuration = 2000;
         this.timerStarted = false;
         this.animationStarted = false;
-        this.directionShowed = true;
+        this.directionShowed = false;
 
         this.grayscaleApplied = false;
         this.edgeApplied = false;
@@ -231,6 +231,13 @@ class Task2 {
                 text(`cX: ${centroidImg2[0]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 20);
                 text(`cY: ${centroidImg2[1]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 40);
 
+                
+            }
+
+            image(currentImage1, 0, 0);
+            image(currentImage2, width / 2, 0);
+
+            if (this.directionShowed) {
                 let direction = this.cachedDirection;
                 let directionX = currentImage1.width / 2;
                 let directionY = currentImage1.height + 60;
@@ -238,11 +245,12 @@ class Task2 {
                 if (direction && direction !== "UNDEFINED") {
                     this.drawDirectionArrow(direction, directionX, directionY + 20);
                 }
+
+                // EXTENSION
+                this.drawBlockMotionVectors(width / 2);
             }
 
-            image(currentImage1, 0, 0);
-            image(currentImage2, width / 2, 0);
-            this.drawBlockMotionVectors(width / 2);
+            
         }
 
         if (this.animationStarted) {
