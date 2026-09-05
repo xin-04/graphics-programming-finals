@@ -1,19 +1,15 @@
-/**
-Pair 1: dx=80, dy=0
-Pair 2: dx=-90, dy=0
-Pair 3: dx=74.8368004130028, dy=77.75557299909443
-Pair 4: dx=-75.00000000000003, dy=-75
-Pair 5: dx=0, dy=-96.99999999999997
-Pair 6: dx=0, dy=112
-Pair 7: dx=-141, dy=66
-Pair 8: dx=121, dy=-85
-*/
+
 
 // EXTENSION
-// METHODS: divideIntoBlock, aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
-// ISSUE: pair 5-8 are not estimated correctly (inconsistent arrows)
-// FOUND: pair 5-8 has bigger leap in centroid values
-// FIX: even bigger searchRange
+// METHODS: aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
+// ISSUE: pair 6 takes more time and causes the program to lag
+// FOUND: pair 6 has more pixels than the others
+// FIX: 
+
+// FIXED
+// issue: pair 5-8 are not estimated correctly (inconsistent arrows)
+// found: pair 5-8 has bigger leap in centroid values
+// fix: even bigger searchRange
 
 // TODO: optimise computeCentroid, right now it doesn't trigger the first time when i press the button
 
@@ -55,6 +51,7 @@ class Task2 {
         this.cachedGrayscaleApplied = false;
         this.cachedEdgeApplied = false;
         this.cachedThresholdApplied = false;
+        this.cachedCentroidApplied = false;
         this.cachedThresholdValue = -1;
         this.cachedRawImage1 = null;
         this.cachedRawImage2 = null;
@@ -75,7 +72,7 @@ class Task2 {
 
         // Drawback: huge performance cost
         // Candidate count per block: (2 x searchRange + 1) ^ 2
-        this.searchRange = 160;
+        this.searchRange = 140;
 
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
@@ -109,6 +106,7 @@ class Task2 {
             this.cachedGrayscaleApplied !== this.grayscaleApplied ||
             this.cachedEdgeApplied !== this.edgeApplied ||
             this.cachedThresholdApplied !== this.thresholdApplied ||
+            this.cachedCentroidApplied !== this.centroidApplied ||
             this.cachedThresholdValue !== thresholdValue;
 
         if (!needsUpdate) {
@@ -119,6 +117,7 @@ class Task2 {
         this.cachedGrayscaleApplied = this.grayscaleApplied;
         this.cachedEdgeApplied = this.edgeApplied;
         this.cachedThresholdApplied = this.thresholdApplied;
+        this.cachedCentroidApplied = this.centroidApplied;
         this.cachedThresholdValue = thresholdValue;
 
         if (this.cachedThresholdValue !== previousThresholdValue) {
@@ -192,7 +191,6 @@ class Task2 {
         if (this.centroidApplied) {
             let centroid1 = this.computeCentroid(source1);
             let centroid2 = this.computeCentroid(source2);
-            console.log(`Pair ${(this.currentImageIndex / 2) + 1}: dx=${centroid2[0] - centroid1[0]}, dy=${centroid2[1] - centroid1[1]}`);
             this.cachedCentroid1 = centroid1;
             this.cachedCentroid2 = centroid2;
             this.cachedDirection = this.decideMotion(this.cachedCentroid1, this.cachedCentroid2);
@@ -209,7 +207,6 @@ class Task2 {
         if (this.imageLoaded && this.processed_image.length > 0) {
             let currentImage1 = this.processed_image[this.currentImageIndex];
             let currentImage2 = this.processed_image[this.currentImageIndex + 1];
-            console.log(`Current showing pair ${this.currentImageIndex}`);
 
             // let scale = 1;
             // let w = currentImage.width * scale;
@@ -220,14 +217,13 @@ class Task2 {
             currentImage2 = this.cachedProcessedImage2 || currentImage2;
 
             if (this.centroidApplied) {
-                let centroidImg1 = this.cachedCentroid1;
-                let centroidImg2 = this.cachedCentroid2;
-                text(`cX: ${centroidImg1[0]}`, currentImage1.width / 2, currentImage1.height + 20);
-                text(`cY: ${centroidImg1[1]}`, currentImage1.width / 2, currentImage1.height + 40);
-                text(`cX: ${centroidImg2[0]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 20);
-                text(`cY: ${centroidImg2[1]}`, (width / 2) + (currentImage2.width / 2), currentImage2.height + 40);
-
-                
+                let centroid1 = this.cachedCentroid1;
+                let centroid2 = this.cachedCentroid2;
+                text(
+                    `Pair ${(this.currentImageIndex / 2) + 1}: dx=${centroid2[0] - centroid1[0]}, dy=${centroid2[1] - centroid1[1]}`,
+                    currentImage1.width / 2,
+                    currentImage1.height + 20
+                );
             }
 
             image(currentImage1, 0, 0);
@@ -237,16 +233,17 @@ class Task2 {
                 let direction = this.cachedDirection;
                 let directionX = currentImage1.width / 2;
                 let directionY = currentImage1.height + 60;
-                text(`Direction: ${direction}`, directionX, directionY);
+
+                text(`Basic Estimated Direction: ${direction}`, directionX, directionY);
                 if (direction && direction !== "UNDEFINED") {
                     this.drawDirectionArrow(direction, directionX, directionY + 20);
                 }
 
                 // EXTENSION
                 this.drawBlockMotionVectors(width / 2);
-            }
+                text(`Block-based Estimated Direction: ${this.blockMotionDirection}`, directionX, directionY + 40);
 
-            
+            }
         }
 
         if (this.animationStarted) {
@@ -464,6 +461,11 @@ class Task2 {
 
         let vectors = [];
 
+        // DEBUG
+        let totalPixelsAboveZero = 0;
+        let totalBlocksConsidered = 0;
+        let totalBlocksSearched = 0;
+
         // bx = blockX; by = blockY
         for (let by = 0; by < referenceFrame.height; by += blockSize) {
             for (let bx = 0; bx < referenceFrame.width; bx += blockSize) {
@@ -474,6 +476,8 @@ class Task2 {
 
                 for (let y = 0; y < blockHeight; y++) {
                     for (let x = 0; x < blockWidth; x++) {
+                        totalBlocksConsidered++;
+
                         let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
                         if (referenceFrame.pixels[referenceIndex] > 0) {
                             pixelCount++;
@@ -481,10 +485,14 @@ class Task2 {
                     }
                 }
 
+                totalPixelsAboveZero += pixelCount;
+
                 let minimumPixelCount = Math.ceil(blockArea * this.minimumBlockContentRatio);
                 if (pixelCount < minimumPixelCount || pixelCount === blockArea) {
                     continue;
                 }
+
+                totalBlocksSearched++;
 
                 let bestSAD = Infinity;
                 let bestOffset = { dx: 0, dy: 0 };
@@ -522,7 +530,7 @@ class Task2 {
                 }
 
                 console.log(`block(${bx},${by}) dx=${bestOffset.dx} dy=${bestOffset.dy} sad=${bestSAD}`);
-                
+
                 vectors.push({
                     x: bx,
                     y: by,
@@ -533,6 +541,14 @@ class Task2 {
                 });
             }
         }
+
+        console.log(
+            `Motion estimation summary — ` +
+            `pixels>0: ${totalPixelsAboveZero}, ` +
+            `blocks total: ${totalBlocksConsidered}, ` +
+            `blocks searched: ${totalBlocksSearched}, ` +
+            `searchRange: ${searchRange}`
+        );
 
         this.blockMotionVectors = vectors;
         return vectors;
