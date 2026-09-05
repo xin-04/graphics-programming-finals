@@ -1,4 +1,5 @@
 // Issue faced: block-based estimation searchRange
+// Centroid dx: 60-80; Centroid dy: 0-12
 
 // TODO: optimise computeCentroid, right now it doesn't trigger the first time when i press the button
 
@@ -60,7 +61,11 @@ class Task2 {
         // EXTENSION
         this.blockGridSize = 4;
         this.blockSize = 16;
-        this.searchRange = 15;
+
+        // Drawback: huge performance cost
+        // Candidate count per block: (2 x searchRange + 1) ^ 2
+        this.searchRange = 90;
+
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
         this.blockMotionDirection = "UNDEFINED";

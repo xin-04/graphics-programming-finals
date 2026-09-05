@@ -45,7 +45,7 @@ function setup() {
 
   task1 = new Task1();
   task2 = new Task2();
-  currentMenu = 0;
+  currentMenu = 1;
 }
 
 function draw() {
