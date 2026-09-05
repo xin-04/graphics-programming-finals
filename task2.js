@@ -1,5 +1,19 @@
-// Issue faced: block-based estimation searchRange
-// Centroid dx: 60-80; Centroid dy: 0-12
+/**
+Pair 1: dx=80, dy=0
+Pair 2: dx=-90, dy=0
+Pair 3: dx=74.8368004130028, dy=77.75557299909443
+Pair 4: dx=-75.00000000000003, dy=-75
+Pair 5: dx=0, dy=-96.99999999999997
+Pair 6: dx=0, dy=112
+Pair 7: dx=-141, dy=66
+Pair 8: dx=121, dy=-85
+*/
+
+// EXTENSION
+// METHODS: divideIntoBlock, aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
+// ISSUE: pair 5-8 are not estimated correctly (inconsistent arrows)
+// FOUND: pair 5-8 has bigger leap in centroid values
+// FIX: even bigger searchRange
 
 // TODO: optimise computeCentroid, right now it doesn't trigger the first time when i press the button
 
@@ -64,7 +78,7 @@ class Task2 {
 
         // Drawback: huge performance cost
         // Candidate count per block: (2 x searchRange + 1) ^ 2
-        this.searchRange = 90;
+        this.searchRange = 160;
 
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
@@ -179,8 +193,11 @@ class Task2 {
         }
 
         if (this.centroidApplied) {
-            this.cachedCentroid1 = this.computeCentroid(source1);
-            this.cachedCentroid2 = this.computeCentroid(source2);
+            let centroid1 = this.computeCentroid(source1);
+            let centroid2 = this.computeCentroid(source2);
+            console.log(`Pair ${(this.currentImageIndex / 2) + 1}: dx=${centroid2[0] - centroid1[0]}, dy=${centroid2[1] - centroid1[1]}`);
+            this.cachedCentroid1 = centroid1;
+            this.cachedCentroid2 = centroid2;
             this.cachedDirection = this.decideMotion(this.cachedCentroid1, this.cachedCentroid2);
         } else {
             this.cachedCentroid1 = [0, 0];
@@ -601,7 +618,6 @@ class Task2 {
             return [0, 0];
         }
 
-        console.log(`Centroid dx=${this.cachedCentroid2[0] - this.cachedCentroid1[0]}, dy=${this.cachedCentroid2[1] - this.cachedCentroid1[1]}`);
         return [totalX / count, totalY / count];
     }
 
