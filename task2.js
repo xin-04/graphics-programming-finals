@@ -11,8 +11,6 @@
 // found: pair 5-8 has bigger leap in centroid values
 // fix: even bigger searchRange
 
-// TODO: optimise computeCentroid, right now it doesn't trigger the first time when i press the button
-
 class Task2 {
     constructor() {
         this.bgColour = 240;
@@ -410,11 +408,18 @@ class Task2 {
         return [totalRed, totalGreen, totalBlue];
     }
 
+    /**
+     * Combines all per-block motion vectors into a single overall direction estimate
+     * @param {Array} vectors - block motion vectors from applyBlockMotionEstimation()
+     * @returns {string} One of the 8 direction labels
+     */
     aggregateBlockMotion(vectors) {
         let weightedDX = 0;
         let weightedDY = 0;
         let totalWeight = 0;
 
+        // Each block vector is weighted by its pixelCount
+        // Blocks with stronger content contribute more to the final estimate
         for (let vector of vectors) {
             weightedDX += vector.dx * vector.pixelCount;
             weightedDY += vector.dy * vector.pixelCount;
@@ -444,7 +449,28 @@ class Task2 {
         }
     }
 
-    // sad = Sum of Absolute Difference
+    /**
+     * Block-based motion estimation using Sum of Absolute Differences
+     * 
+     * Divides the reference frame into a grid of fixed-size blocks
+     * Independently estimate how each block moved between two frames
+     * Reveals whether motion is uniform across the image (pure translation) 
+     * or varies spatially (due to scale change, rotation, or non-rigid movement)
+     * 
+     * PERFORMANCE NOTE
+     * Candidate count per block is (2*searchRange+1)^2
+     * This is the most computationally expensive part of the extension
+     * searchRange must be large enough to cover the largest expected displacement
+     * between frames, or the matcher cannot find the true position at all.`
+     * 
+     * @param {p5.Image} referenceFrame - frame A diced into blocks
+     * @param {p5.Image} targetFrame - frame B searched for matches
+     * @param {number} blockSize - width / height of each square block in pixles
+     * @param {number} searchRange - max offset (in pixels) searched in each direction
+     * @returns {Array<{x, y, dx, dy, sad, pixelCount}>} One entry per block that passed
+     *      the content filter, giving its position, estimated motion vector, best
+     *      SAD score, and hoe many foreground pixels it contained
+     */
     applyBlockMotionEstimation(referenceFrame, targetFrame, blockSize = this.blockSize, searchRange = this.searchRange) {
         if (!referenceFrame || !targetFrame ||
             referenceFrame.width !== targetFrame.width ||
@@ -474,6 +500,7 @@ class Task2 {
                 let blockArea = blockWidth * blockHeight;
                 let pixelCount = 0;
 
+                // Count non-zero (thresholded) pixels
                 for (let y = 0; y < blockHeight; y++) {
                     for (let x = 0; x < blockWidth; x++) {
                         totalBlocksConsidered++;
@@ -487,6 +514,7 @@ class Task2 {
 
                 totalPixelsAboveZero += pixelCount;
 
+                // Blocks with too little content or too much are skipped
                 let minimumPixelCount = Math.ceil(blockArea * this.minimumBlockContentRatio);
                 if (pixelCount < minimumPixelCount || pixelCount === blockArea) {
                     continue;
@@ -497,6 +525,7 @@ class Task2 {
                 let bestSAD = Infinity;
                 let bestOffset = { dx: 0, dy: 0 };
 
+                // Search a window of candidate offsets (searchRange) in the target frame
                 for (let oy = -searchRange; oy <= searchRange; oy++) {
                     for (let ox = -searchRange; ox <= searchRange; ox++) {
                         let candidateX = bx + ox;
@@ -508,6 +537,7 @@ class Task2 {
                             continue;
                         }
 
+                        // For each candidate, compute SAD between the block's pixels and the candidate region
                         let sad = 0;
                         candidatePixels:
                         for (let y = 0; y < blockHeight; y++) {
@@ -522,6 +552,8 @@ class Task2 {
                             }
                         }
 
+                        // EARLY EXIT: reduce wasted computation on clearly-worse candidates
+                        // Offset with the lowest SAD is taken as that block's motion vector
                         if (sad < bestSAD) {
                             bestSAD = sad;
                             bestOffset = { dx: ox, dy: oy };
