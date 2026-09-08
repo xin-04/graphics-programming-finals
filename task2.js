@@ -71,6 +71,8 @@ class Task2 {
         // Drawback: huge performance cost
         // Candidate count per block: (2 x searchRange + 1) ^ 2
         this.searchRange = 140;
+        // Coarse to fine searching
+        this.motionSearchStep = 4;
 
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
@@ -476,7 +478,11 @@ class Task2 {
      * Candidate count per block is (2*searchRange+1)^2
      * This is the most computationally expensive part of the extension
      * searchRange must be large enough to cover the largest expected displacement
-     * between frames, or the matcher cannot find the true position at all.`
+     * between frames, or the matcher cannot find the true position at all.
+     * 
+     * To target how expensive this is, the program does a coarse pass instead.
+     * With motionSearchStep = 4, coarsely pass through roughly
+     * (2 * 160 / 4 + 1)^2 = 6,561 candidates instead of the full 321^2 = 103,041
      * 
      * @param {p5.Image} referenceFrame - frame A diced into blocks
      * @param {p5.Image} targetFrame - frame B searched for matches
@@ -540,43 +546,56 @@ class Task2 {
                 let bestSAD = Infinity;
                 let bestOffset = { dx: 0, dy: 0 };
 
-                // Search a window of candidate offsets (searchRange) in the target frame
-                for (let oy = -searchRange; oy <= searchRange; oy++) {
-                    for (let ox = -searchRange; ox <= searchRange; ox++) {
-                        let candidateX = bx + ox;
-                        let candidateY = by + oy;
+                
 
-                        if (candidateX < 0 || candidateY < 0 ||
-                            candidateX + blockWidth > targetFrame.width ||
-                            candidateY + blockHeight > targetFrame.height) {
-                            continue;
-                        }
+                let evaluateCandidate = (ox, oy) => {
+                    let candidateX = bx + ox;
+                    let candidateY = by + oy;
 
-                        // For each candidate, compute SAD between the block's pixels and the candidate region
-                        let sad = 0;
-                        candidatePixels:
-                        for (let y = 0; y < blockHeight; y++) {
-                            for (let x = 0; x < blockWidth; x++) {
-                                let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
-                                let targetIndex = ((candidateY + y) * targetFrame.width + candidateX + x) * 4;
-                                sad += abs(referenceFrame.pixels[referenceIndex] - targetFrame.pixels[targetIndex]);
+                    if (candidateX < 0 || candidateY < 0 ||
+                        candidateX + blockWidth > targetFrame.width ||
+                        candidateY + blockHeight > targetFrame.height) {
+                        return;
+                    }
 
-                                if (sad >= bestSAD) {
-                                    break candidatePixels;
-                                }
+                    let sad = 0;
+                    candidatePixels:
+                    for (let y = 0; y < blockHeight; y++) {
+                        for (let x = 0; x < blockWidth; x++) {
+                            let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
+                            let targetIndex = ((candidateY + y) * targetFrame.width + candidateX + x) * 4;
+                            sad += abs(referenceFrame.pixels[referenceIndex] - targetFrame.pixels[targetIndex]);
+
+                            if (sad >= bestSAD) {
+                                break candidatePixels;
                             }
                         }
+                    }
 
-                        // EARLY EXIT: reduce wasted computation on clearly-worse candidates
-                        // Offset with the lowest SAD is taken as that block's motion vector
-                        if (sad < bestSAD) {
-                            bestSAD = sad;
-                            bestOffset = { dx: ox, dy: oy };
-                        }
+                    if (sad < bestSAD) {
+                        bestSAD = sad;
+                        bestOffset = { dx: ox, dy: oy };
+                    }
+                };
+
+                // First locate the best area using a coarse search
+                for (let oy = -searchRange; oy <= searchRange; oy += this.motionSearchStep) {
+                    for (let ox = -searchRange; ox <= searchRange; ox += this.motionSearchStep) {
+                        evaluateCandidate(ox, oy);
                     }
                 }
 
-                console.log(`block(${bx},${by}) dx=${bestOffset.dx} dy=${bestOffset.dy} sad=${bestSAD}`);
+                // Then refine to pixel precision around the coarse result
+                let refinementRadius = this.motionSearchStep - 1;
+                for (let oy = bestOffset.dy - refinementRadius;
+                    oy <= bestOffset.dy + refinementRadius;
+                    oy++) {
+                    for (let ox = bestOffset.dx - refinementRadius;
+                        ox <= bestOffset.dx + refinementRadius;
+                        ox++) {
+                        evaluateCandidate(ox, oy);
+                    }
+                }
 
                 vectors.push({
                     x: bx,
@@ -588,14 +607,6 @@ class Task2 {
                 });
             }
         }
-
-        console.log(
-            `Motion estimation summary — ` +
-            `pixels>0: ${totalPixelsAboveZero}, ` +
-            `blocks total: ${totalBlocksConsidered}, ` +
-            `blocks searched: ${totalBlocksSearched}, ` +
-            `searchRange: ${searchRange}`
-        );
 
         this.blockMotionVectors = vectors;
         return vectors;
