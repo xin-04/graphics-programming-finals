@@ -75,6 +75,8 @@ class Task2 {
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
         this.blockMotionDirection = "UNDEFINED";
+        this.blockMotionUpdateTimer = null;
+        this.blockMotionDebounceDelay = 200;
     }
 
     loadImages() {
@@ -89,10 +91,23 @@ class Task2 {
         if (!this.imageLoaded || !this.thresholdApplied || !this.centroidApplied) {
             return;
         }
-        this.updateCachedProcessedImages();
+
+        // Update the visible threshold immediately, but defer block matching.
+        this.updateCachedProcessedImages(false);
+        this.blockMotionVectors = [];
+        this.blockMotionDirection = "UNDEFINED";
+
+        if (this.blockMotionUpdateTimer !== null) {
+            clearTimeout(this.blockMotionUpdateTimer);
+        }
+
+        this.blockMotionUpdateTimer = setTimeout(() => {
+            this.blockMotionUpdateTimer = null;
+            this.updateCachedProcessedImages(true, true);
+        }, this.blockMotionDebounceDelay);
     }
 
-    updateCachedProcessedImages() {
+    updateCachedProcessedImages(calculateBlockMotion = true, forceUpdate = false) {
         if (!this.imageLoaded || this.processed_image.length < 2) {
             return;
         }
@@ -107,7 +122,7 @@ class Task2 {
             this.cachedCentroidApplied !== this.centroidApplied ||
             this.cachedThresholdValue !== thresholdValue;
 
-        if (!needsUpdate) {
+        if (!needsUpdate && !forceUpdate) {
             return;
         }
 
@@ -178,10 +193,10 @@ class Task2 {
         this.cachedProcessedImage1 = source1;
         this.cachedProcessedImage2 = source2;
 
-        if (this.thresholdApplied) {
+        if (this.thresholdApplied && calculateBlockMotion) {
             this.blockMotionVectors = this.applyBlockMotionEstimation(source1, source2);
             this.blockMotionDirection = this.aggregateBlockMotion(this.blockMotionVectors);
-        } else {
+        } else if (!this.thresholdApplied) {
             this.blockMotionVectors = [];
             this.blockMotionDirection = "UNDEFINED";
         }
