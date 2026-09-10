@@ -1,15 +1,51 @@
+/**
+ * EXTENSION
+ * METHODS: aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
+ * PROS: more advanced than basic motion estimation via centroid
+ * CONS: more computationally demanding
+ * 
+ * MY CHALLENGES: I tried a coarse-to-fine searching to make applyBlockMotionEstimation cheaper:
+ * sparsely sampling candidates at a fixed step, then refine around the best results (standard
+ * optimisation used in video compression); roughly (2×160/4+1)^2 = 6,561 candidates 
+ * instead of the full 321^2 = 103,041.
+ * 
+ * Testing against the given dataset showed significant inaccuracy. My initial implementation
+ * refined only a single best coarse candidate, which I suspected could lock onto the wrong local
+ * minimum on a noisy SAD surface. I extended the coarse candidates, thinking this would make 
+ * the search more robust to a misleading single best guess. However, this didn't resolve the
+ * accuracy loss.
+ * 
+ * On reflecton, I beleive the underlying issue is not ranking but sampling (which offsets get
+ * tested). My block content is not smooth photographic detail but sparse, threshold edge outlines.
+ * The true best-matching offset for such content can correspond to a narrow alignment window.  
+ * If the coarse sampling step never lands inside that narrow window, no amount of refining around
+ * top candidates can estimate the correct direction, because it was never sampled in the first place.
+ * Keeping more coarse candidates (I tested 10) did not help, which supports my explanation that
+ * the problem is undersampling, not misranking.
+ *
+ * Given this, I decided to keep the full exhaustive search for correctness, since motion estimation
+ * accuracy across all pairs is the priority for this task. I kept the early exit SAD optimisation
+ * (abandoning a candidate once its running SAD already exceeds the current best), which reduces
+ * computation without any accuracy cost since it never discards a candidate that could still win.
+ * 
+ * To address the practical performance problem (lag while dragging the threshold slider), I added 
+ * debouncing: block motion is only recalculated 200ms after the slider stops moving, rather than on
+ * every intermediate value. This solved the responsiveness problem I originally set out to fix,
+ * without compromising the estimator's accuracy.
+ * 
+ * ===================================================================
+ * 
+ * ISSUE: pair 6 takes more time and causes time discrepancies for other pairs
+ * FOUND: pair 6 has more pixels than the others
+ * FIX: 
+ * 
+ * FIXED
+ * ISSUE: pair 5-8 are not estimated correctly (inconsistent arrows)
+ * FOUND: pair 5-8 has bigger leap in centroid values
+ * FIX: even bigger searchRange
+ */
 
 
-// EXTENSION
-// METHODS: aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
-// ISSUE: pair 6 takes more time and causes the program to lag
-// FOUND: pair 6 has more pixels than the others
-// FIX: 
-
-// FIXED
-// issue: pair 5-8 are not estimated correctly (inconsistent arrows)
-// found: pair 5-8 has bigger leap in centroid values
-// fix: even bigger searchRange
 
 class Task2 {
     constructor() {
