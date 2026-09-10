@@ -37,7 +37,8 @@
  * 
  * ISSUE: pair 6 takes more time and causes time discrepancies for other pairs
  * FOUND: pair 6 has more pixels than the others
- * FIX: 
+ * FIX: apply a boolean check to make sure program only transitions to the next image pair 
+ *      after drawBlockMotionVectors has passed 3 seconds
  * 
  * FIXED
  * ISSUE: pair 5-8 are not estimated correctly (inconsistent arrows)
@@ -113,6 +114,8 @@ class Task2 {
         this.blockMotionDirection = "UNDEFINED";
         this.blockMotionUpdateTimer = null;
         this.blockMotionDebounceDelay = 200;
+        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.directionArrowsShownAt = 0;
     }
 
     loadImages() {
@@ -289,14 +292,17 @@ class Task2 {
                 }
 
                 // EXTENSION
-                this.drawBlockMotionVectors(width / 2);
+                this.hasShownDirectionArrowsForThreeSeconds = this.drawBlockMotionVectors(
+                    width / 2,
+                    this.hasShownDirectionArrowsForThreeSeconds
+                );
                 text(`Block-based Estimated Direction: ${this.blockMotionDirection}`, directionX, directionY + 40);
 
             }
         }
 
         if (this.animationStarted) {
-            if (millis() >= this.targetTime) {
+            if (millis() >= this.targetTime && this.hasShownDirectionArrowsForThreeSeconds) {
                 this.currentImageIndex = (this.currentImageIndex + 2) % task2_images.length;
                 this.targetTime = millis() + this.waitDuration;
             }
@@ -486,7 +492,11 @@ class Task2 {
         return this.decideMotion([0, 0], [averageDX, averageDY]);
     }
 
-    drawBlockMotionVectors(imageOffsetX = 0) {
+    drawBlockMotionVectors(imageOffsetX = 0, hasShownDirectionArrowsForThreeSeconds = false) {
+        if (this.directionArrowsShownAt === 0) {
+            this.directionArrowsShownAt = millis();
+        }
+
         for (let vector of this.blockMotionVectors) {
             let direction = this.decideMotion([0, 0], [vector.dx, vector.dy]);
             if (direction !== "UNDEFINED") {
@@ -498,6 +508,13 @@ class Task2 {
                 );
             }
         }
+
+        if (!hasShownDirectionArrowsForThreeSeconds &&
+            millis() - this.directionArrowsShownAt >= 3000) {
+            hasShownDirectionArrowsForThreeSeconds = true;
+        }
+
+        return hasShownDirectionArrowsForThreeSeconds;
     }
 
     /**
@@ -634,6 +651,8 @@ class Task2 {
         );
 
         this.blockMotionVectors = vectors;
+        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.directionArrowsShownAt = 0;
         return vectors;
     }
 
