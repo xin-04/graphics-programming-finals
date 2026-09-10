@@ -53,12 +53,9 @@ class Task1 {
     this.movingTextStartTime = 0;
     this.movingTextSpeed = 140;
     
-    this.thresholdSlider = createSlider(0, 255, 110, 1);
-    this.thresholdSlider.position(520, 15);
   }
 
   loadCarousel() {
-    this.bgColour = color(0, 50, 100);
     this.bg = bgImg;
   }
 
@@ -95,12 +92,15 @@ class Task1 {
   }
 
   draw() {
-    this.thresholdSlider.show();
     if (task2 && task2.thresholdSlider) {
       task2.thresholdSlider.hide();
     }
 
-    if (this.bgLoaded) this.drawBackground();
+    if (this.bgLoaded) {
+      this.drawBackground();
+    } else {
+      background(125);
+    }
     fill("#34ebe1");
     imageMode(CORNER);
 
@@ -124,7 +124,10 @@ class Task1 {
 
   // panProgress (0.0 = left edge, 1.0 = right edge)
   getFittedBounds(img, zoomFactor = 1.0, panProgress = 0.0, forceLeft = false, trim = { left: 0, right: 0 }) {
-    let baseScale = min(width / img.width, height / img.height);
+    let topOverlayHeight = 76;
+    let bottomOverlayHeight = 38;
+    let usableHeight = max(1, height - topOverlayHeight - bottomOverlayHeight);
+    let baseScale = min(width / img.width, usableHeight / img.height);
     let w = img.width * baseScale * zoomFactor;
     let h = img.height * baseScale * zoomFactor;
 
@@ -143,7 +146,7 @@ class Task1 {
       x = lerp(startX, endX, progress);
     }
 
-    let y = (height - h) / 2;
+    let y = topOverlayHeight + (usableHeight - h) / 2;
     return { x, y, w, h };
   }
 
@@ -240,13 +243,13 @@ class Task1 {
   }
 
   drawMovingText() {
-    let movingText = "Cat Butler Audition 2026: Cats Save The World";
+    let movingText = "Cat Butler Audition 2026: Who Shall Serve?";
 
     push();
     textAlign(LEFT, CENTER);
     textSize(32);
     textStyle(BOLD);
-    fill("#c8973d");
+    fill(255, 220, 150);
 
     let textWidthValue = textWidth(movingText);
     let cycleWidth = width + textWidthValue;
@@ -302,45 +305,60 @@ class Task1 {
     textStyle(NORMAL);
     text("TASK 1  /  BACKGROUND REMOVAL", 34, 52);
 
-    if (this.thresholdSlider && thresholds[this.currentImageIndex]) {
+    if (this.imageLoaded) {
+      let colourSpaceInt = thresholds[this.currentImageIndex][0];
+      let colourSpaceStr;
+      if (colourSpaceInt > 0) colourSpaceStr = "HSB";
+      else colourSpaceStr = "RGB";
+
+      let c1 = thresholds[this.currentImageIndex][1];
+      let c2 = thresholds[this.currentImageIndex][2];
+      let c3 = thresholds[this.currentImageIndex][3];
       let thresholdValue = thresholds[this.currentImageIndex][4];
-      this.thresholdSlider.value(thresholdValue);
       fill(235);
       textSize(14);
-      text(`THRESHOLD  ${thresholdValue}`, 400, 27);
-    }
+      text(`COLOUR SPACE: ${colourSpaceStr}`, 400, 27);
+      text(`C1: ${c1}`, 600, 27);
+      text(`C2: ${c2}`, 700, 27);
+      text(`C3: ${c3}`, 800, 27);
+      text(`THRESHOLD: ${thresholdValue}`, 900, 27);
 
+      fill(155, 180, 190);
+      text(`CURRENT IMAGE SHOWN: ${this.currentImageIndex + 1}`, 400, 51);
+    }
+    
     pop();
     this.drawModeSelection();
   }
 
   drawModeSelection() {
-    let panelX = width - 248;
-    let panelY = 92;
-    let panelW = 230;
-    let panelH = 174;
+    let panelX = 0;
+    let panelY = height - 38;
+    let panelW = width;
+    let panelH = 38;
 
     push();
     rectMode(CORNER);
     textAlign(LEFT, CENTER);
 
     fill(12, 24, 38, 232);
-    stroke(255, 220);
+    stroke(255, 180);
     strokeWeight(1.2);
-    rect(panelX, panelY, panelW, panelH, 10);
+    rect(panelX, panelY, panelW, panelH);
 
     noStroke();
     fill(255, 235, 180);
-    textSize(16);
-    textStyle(BOLD);
-    text("KEY COMMANDS", panelX + 16, panelY + 22);
     textSize(14);
+    textStyle(BOLD);
+    text("KEY COMMANDS", panelX + 22, panelY + panelH / 2);
+
+    textSize(13);
     textStyle(NORMAL);
     fill(225);
-    text("C   load carousel", panelX + 16, panelY + 52);
-    text("L   load images", panelX + 16, panelY + 77);
-    text("S   start animation", panelX + 16, panelY + 102);
-    text("P   pause animation", panelX + 16, panelY + 127);
+    text("C   load carousel", panelX + 250, panelY + panelH / 2);
+    text("L   load images", panelX + 450, panelY + panelH / 2);
+    text("S   start animation", panelX + 650, panelY + panelH / 2);
+    text("P   pause animation", panelX + 850, panelY + panelH / 2);
 
     pop();
     textAlign(CENTER, CENTER);
