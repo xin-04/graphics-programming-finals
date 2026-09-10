@@ -8,21 +8,21 @@ var task2_images = [];
 var thresholds = [];  // [colourSpace, c1, c2, c3, thresholdVal]
 
 // TASK1 IMG1
-thresholds.push([0, 227, 217, 226, 59]);
+thresholds.push([0, 227, 217, 226, 59, 0]);
 // IMG2
-thresholds.push([0, 255, 255, 255, 24]);
+thresholds.push([0, 255, 255, 255, 24, 0]);
 // IMG3
-thresholds.push([0, 239, 234, 240, 58]);
+thresholds.push([0, 174, 207, 236, 78, 0]);
 // IMG4
-thresholds.push([0, 255, 253, 250, 56]);
+thresholds.push([0, 255, 253, 250, 56, 0]);
 // IMG5
-thresholds.push([0, 255, 255, 255, 56]);
+thresholds.push([0, 255, 255, 255, 56, 0]);
 // IMG6
-thresholds.push([0, 250, 251, 253, 28]);
+thresholds.push([0, 250, 251, 253, 28, 0]);
 // IMG7
-thresholds.push([0, 255, 255, 255, 9]);
+thresholds.push([0, 255, 255, 255, 9, 0]);
 // IMG8
-thresholds.push([0, 244, 235, 230, 27]);
+thresholds.push([0, 244, 235, 230, 27, 0]);
 
 function preload() {
   bgImg = loadImage('assets/task1/background.png');
@@ -93,21 +93,13 @@ function keyPressed() {
 
   // Key 'r': switch to RGB
   if (keyCode === 82 && currentMenu === 0 && task1.imageLoaded) {
-    thresholds[task1.currentImageIndex][0] = 0;
-    task1.processed_image[task1.currentImageIndex] = task1.applyThreshold(
-      task1_images[task1.currentImageIndex],
-      thresholds[task1.currentImageIndex]
-    );
+    task1.setColorSpace(0);
     console.log("Apply RGB threshold");
   }
 
   // Key 'h': switch to HSB
   if (keyCode === 72 && currentMenu === 0 && task1.imageLoaded) {
-    thresholds[task1.currentImageIndex][0] = 1;
-    task1.processed_image[task1.currentImageIndex] = task1.applyThreshold(
-      task1_images[task1.currentImageIndex],
-      thresholds[task1.currentImageIndex]
-    );
+    task1.setColorSpace(1);
     console.log("Apply HSB threshold");
   }
 

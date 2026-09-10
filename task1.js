@@ -1,4 +1,18 @@
 /**
+ * REASON WHY I USED RGB THRESHOLDING ACROSS ALL IMAGES
+ * I tested both RGB and HSB thresholding on all 8 images. RGB thresholding
+ * outperformed HSB in every case. For low-saturation content (which are most
+ * images, given white/neutral backgrounds and dark or white clothing), HSB's
+ * hue channel is unstable near zero saturation, causing incomplete background
+ * removal or foreground erosion. Even for image 6, which has a strongly 
+ * saturated blue shirt, HSB left more residual background than RGB. This is
+ * likely due to hue noise from subtle background brightness variation.
+ * Image 8 showed a different failure scenario: HSB removed foreground skin
+ * pixels because skin tone and the subject's tan blazer are hue-similar,
+ * despite both having moderate saturation. Across the images, RGB's direct
+ * comparison of brightness and colour together proved more robust than hue-
+ * based discrimination.
+ * 
  * ISSUE: Image 2 has a lot of leftover background pixels around her hair
  * REASON: Image 2 has frizzy hair, which is very fine and hard to remove surrounding pixels
  *    without removing strands of hair
@@ -221,14 +235,13 @@ class Task1 {
   }
 
   drawMovingText() {
-    let movingText = "Simon • Cookie • Fufu • Circe";
+    let movingText = "Cat Butler Audition 2026: Cats Save The World";
 
     push();
     textAlign(LEFT, CENTER);
     textSize(32);
     textStyle(BOLD);
-    fill(255, 235, 180);
-    noStroke();
+    fill("#c8973d");
 
     let textWidthValue = textWidth(movingText);
     let cycleWidth = width + textWidthValue;
@@ -242,28 +255,29 @@ class Task1 {
   }
 
   drawBackground() {
-    if (!this.bg) {
-      return;
-    }
+    background(125);
+    // if (!this.bg) {
+    //   return;
+    // }
 
-    let w = this.bg.width;
-    let h = this.bg.height;
-    let y = (height - h) / 2;
-    let now = millis();
+    // let w = this.bg.width;
+    // let h = this.bg.height;
+    // let y = (height - h) / 2;
+    // let now = millis();
 
-    if (this.animationStarted) {
-      if (!this.bgScrollLastTime) {
-        this.bgScrollLastTime = now;
-      }
+    // if (this.animationStarted) {
+    //   if (!this.bgScrollLastTime) {
+    //     this.bgScrollLastTime = now;
+    //   }
 
-      this.bgScrollX = (this.bgScrollX +
-        (now - this.bgScrollLastTime) * this.bgScrollSpeed / 1000) % w;
-      this.bgScrollLastTime = now;
-    }
+    //   this.bgScrollX = (this.bgScrollX +
+    //     (now - this.bgScrollLastTime) * this.bgScrollSpeed / 1000) % w;
+    //   this.bgScrollLastTime = now;
+    // }
 
-    for (let x = this.bgScrollX - w; x < width; x += w) {
-      image(this.bg, x, y, w, h);
-    }
+    // for (let x = this.bgScrollX - w; x < width; x += w) {
+    //   image(this.bg, x, y, w, h);
+    // }
   }
 
   drawOverlayUI() {
@@ -340,7 +354,7 @@ class Task1 {
     let targetB = thresholds[2];
     let targetC = thresholds[3];
     let thresholdVal = thresholds[4];
-    let featherRange = 30;
+    let featherRange = thresholds[5];
 
     let imgOut = createImage(img.width, img.height);
     imgOut.loadPixels();
@@ -376,10 +390,11 @@ class Task1 {
         if (diff < thresholdVal) {
           imgOut.pixels[index + 3] = 0;
         } else if (diff < thresholdVal + featherRange) {
-          imgOut.pixels[index + 3] = originalA;
-        } else {
           let alphaProgress = (diff - thresholdVal) / featherRange;
           imgOut.pixels[index + 3] = originalA * alphaProgress;
+        } else {
+          
+          imgOut.pixels[index + 3] = originalA;
         }
       }
     }
