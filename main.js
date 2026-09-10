@@ -8,21 +8,21 @@ var task2_images = [];
 var thresholds = [];  // [colourSpace, c1, c2, c3, thresholdVal]
 
 // TASK1 IMG1
-thresholds.push([0, 227, 217, 226, 59, 0]);
+thresholds.push([0, 227, 217, 226, 59]);
 // IMG2
-thresholds.push([0, 255, 255, 255, 24, 0]);
+thresholds.push([0, 255, 255, 255, 24]);
 // IMG3
-thresholds.push([0, 174, 207, 236, 78, 0]);
+thresholds.push([0, 174, 207, 236, 78]);
 // IMG4
-thresholds.push([0, 255, 253, 250, 56, 0]);
+thresholds.push([0, 255, 253, 250, 56]);
 // IMG5
-thresholds.push([0, 255, 255, 255, 56, 0]);
+thresholds.push([0, 255, 255, 255, 56]);
 // IMG6
-thresholds.push([0, 250, 251, 253, 28, 0]);
+thresholds.push([0, 250, 251, 253, 28]);
 // IMG7
-thresholds.push([0, 255, 255, 255, 9, 0]);
+thresholds.push([0, 255, 255, 255, 9]);
 // IMG8
-thresholds.push([0, 244, 235, 230, 27, 0]);
+thresholds.push([0, 244, 235, 230, 27]);
 
 function preload() {
   bgImg = loadImage('assets/task1/background.png');

@@ -13,10 +13,15 @@
  * comparison of brightness and colour together proved more robust than hue-
  * based discrimination.
  * 
- * ISSUE: Image 2 has a lot of leftover background pixels around her hair
- * REASON: Image 2 has frizzy hair, which is very fine and hard to remove surrounding pixels
- *    without removing strands of hair
- * FIX: 
+ * IMAGE 2
+ * Image 2 has the most leftover background pixels due to the model's frizzy hair.
+ * I tried feathering (smooths the transition between foreground and background) 
+ * and I found a direct trade-off between smoothing hair edges and preserving the
+ * white shirt. This occurs because colour-distance thresholding cannout distinguish
+ * two regions of near-identical colour regardless of feathering. Even if it can 
+ * smooth the edges, it ended up sacrificing large chunks of the white shirt.
+ * I chose to preserve the shirt, accepting the edge on the hair as a result.
+ * 
  */
 
 
@@ -256,28 +261,28 @@ class Task1 {
 
   drawBackground() {
     background(125);
-    // if (!this.bg) {
-    //   return;
-    // }
+    if (!this.bg) {
+      return;
+    }
 
-    // let w = this.bg.width;
-    // let h = this.bg.height;
-    // let y = (height - h) / 2;
-    // let now = millis();
+    let w = this.bg.width;
+    let h = this.bg.height;
+    let y = (height - h) / 2;
+    let now = millis();
 
-    // if (this.animationStarted) {
-    //   if (!this.bgScrollLastTime) {
-    //     this.bgScrollLastTime = now;
-    //   }
+    if (this.animationStarted) {
+      if (!this.bgScrollLastTime) {
+        this.bgScrollLastTime = now;
+      }
 
-    //   this.bgScrollX = (this.bgScrollX +
-    //     (now - this.bgScrollLastTime) * this.bgScrollSpeed / 1000) % w;
-    //   this.bgScrollLastTime = now;
-    // }
+      this.bgScrollX = (this.bgScrollX +
+        (now - this.bgScrollLastTime) * this.bgScrollSpeed / 1000) % w;
+      this.bgScrollLastTime = now;
+    }
 
-    // for (let x = this.bgScrollX - w; x < width; x += w) {
-    //   image(this.bg, x, y, w, h);
-    // }
+    for (let x = this.bgScrollX - w; x < width; x += w) {
+      image(this.bg, x, y, w, h);
+    }
   }
 
   drawOverlayUI() {
@@ -354,7 +359,6 @@ class Task1 {
     let targetB = thresholds[2];
     let targetC = thresholds[3];
     let thresholdVal = thresholds[4];
-    let featherRange = thresholds[5];
 
     let imgOut = createImage(img.width, img.height);
     imgOut.loadPixels();
@@ -389,11 +393,7 @@ class Task1 {
 
         if (diff < thresholdVal) {
           imgOut.pixels[index + 3] = 0;
-        } else if (diff < thresholdVal + featherRange) {
-          let alphaProgress = (diff - thresholdVal) / featherRange;
-          imgOut.pixels[index + 3] = originalA * alphaProgress;
         } else {
-          
           imgOut.pixels[index + 3] = originalA;
         }
       }
