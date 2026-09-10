@@ -5,7 +5,7 @@ var currentMenu;
 var bgImg;
 var task1_images = [];
 var task2_images = [];
-var thresholds = [];
+var thresholds = [];  // [colourSpace, c1, c2, c3, thresholdVal]
 
 // TASK1 IMG1
 thresholds.push([0, 227, 217, 226, 59]);
@@ -45,7 +45,7 @@ function setup() {
 
   task1 = new Task1();
   task2 = new Task2();
-  currentMenu = 1;
+  currentMenu = 0;
 }
 
 function draw() {
@@ -70,10 +70,10 @@ function keyPressed() {
     currentMenu = 1;
   }
 
-  // ================= TASK 2 ==================
+  // ================= TASK 1 ==================
   // Key 'c': load carousel
   if (keyCode === 67 && currentMenu === 0) {
-    task1.loadCarousel();
+    task1.bgLoaded = true;
   }
 
   // Key 'l': load images

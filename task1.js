@@ -1,7 +1,16 @@
+/**
+ * ISSUE: Image 2 has a lot of leftover background pixels around her hair
+ * REASON: Image 2 has frizzy hair, which is very fine and hard to remove surrounding pixels
+ *    without removing strands of hair
+ * FIX: 
+ */
+
+
 class Task1 {
   constructor() {
-    this.bgColour = 220;
+    this.bg = bgImg;
     this.currentImageIndex = 0;
+    this.bgLoaded = false;
     this.imageLoaded = false;
     this.processed_image = [];
     this.imageTrims = [];
@@ -19,13 +28,19 @@ class Task1 {
     this.holdStartTime = 0;
     this.panProgress = 0;
     this.bgPanProgress = 0;
+    this.bgScrollX = 0;
+    this.bgScrollLastTime = 0;
+    this.bgScrollSpeed = 80;
+    this.movingTextStartTime = 0;
+    this.movingTextSpeed = 140;
     
     this.thresholdSlider = createSlider(0, 255, 110, 1);
-    this.thresholdSlider.position(150, 25);
+    this.thresholdSlider.position(520, 15);
   }
 
   loadCarousel() {
     this.bgColour = color(0, 50, 100);
+    this.bg = bgImg;
   }
 
   loadImages() {
@@ -47,6 +62,9 @@ class Task1 {
     this.holdStartTime = millis();
     this.targetTime = this.holdStartTime + this.waitDuration;
     this.panProgress = 0;
+    this.bgScrollX = 0;
+    this.bgScrollLastTime = this.holdStartTime;
+    this.movingTextStartTime = this.holdStartTime;
   }
 
   startTransition() {
@@ -63,8 +81,7 @@ class Task1 {
       task2.thresholdSlider.hide();
     }
 
-    background(this.bgColour);
-    this.drawBackground();
+    if (this.bgLoaded) this.drawBackground();
     fill("#34ebe1");
     imageMode(CORNER);
 
@@ -147,6 +164,8 @@ class Task1 {
     image(toImg, toBounds.x, toBounds.y, toBounds.w, toBounds.h);
     pop();
 
+    this.drawMovingText();
+
     if (elapsed >= this.fadeDuration) {
       this.transitioning = false;
       this.currentImageIndex = this.transitionTo;
@@ -201,67 +220,108 @@ class Task1 {
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
   }
 
-  drawMovingText(progress) {
-    let movingText = "CM2030 Graphics Programming";
-    let textWidthValue = textWidth(movingText);
-    let x = lerp(width + textWidthValue / 2, -textWidthValue / 2, progress);
+  drawMovingText() {
+    let movingText = "Simon • Cookie • Fufu • Circe";
 
     push();
-    textAlign(CENTER, CENTER);
+    textAlign(LEFT, CENTER);
     textSize(32);
     textStyle(BOLD);
     fill(255, 235, 180);
     noStroke();
+
+    let textWidthValue = textWidth(movingText);
+    let cycleWidth = width + textWidthValue;
+    let elapsed = millis() - this.movingTextStartTime;
+    let offset = (elapsed * this.movingTextSpeed / 1000) % cycleWidth;
+    let x = width - offset;
+
     text(movingText, x, height - 55);
+    text(movingText, x + cycleWidth, height - 55);
     pop();
   }
 
   drawBackground() {
-    if (typeof bgImg === 'undefined' || !bgImg) {
+    if (!this.bg) {
       return;
     }
 
-    //let baseScale = max(width / bgImg.width, height / bgImg.height);
-    let baseScale = 1.5;
-    let w = bgImg.width * baseScale;
-    let h = bgImg.height * baseScale;
-    let x = lerp(0, width - w, this.bgPanProgress);
+    let w = this.bg.width;
+    let h = this.bg.height;
     let y = (height - h) / 2;
-    image(bgImg, x, y, w, h);
+    let now = millis();
+
+    if (this.animationStarted) {
+      if (!this.bgScrollLastTime) {
+        this.bgScrollLastTime = now;
+      }
+
+      this.bgScrollX = (this.bgScrollX +
+        (now - this.bgScrollLastTime) * this.bgScrollSpeed / 1000) % w;
+      this.bgScrollLastTime = now;
+    }
+
+    for (let x = this.bgScrollX - w; x < width; x += w) {
+      image(this.bg, x, y, w, h);
+    }
   }
 
   drawOverlayUI() {
-    text("Task 1", 50, 50);
-    if (this.thresholdSlider) {
-      text(this.thresholdSlider.value(), 350, 50);
+    push();
+    noStroke();
+    fill(12, 24, 38, 220);
+    rect(0, 0, width, 76);
+
+    textAlign(LEFT, CENTER);
+    fill(255, 220, 150);
+    textSize(27);
+    textStyle(BOLD);
+    text("STREAMING CAROUSEL", 32, 27);
+
+    fill(190, 210, 220);
+    textSize(12);
+    textStyle(NORMAL);
+    text("TASK 1  /  BACKGROUND REMOVAL", 34, 52);
+
+    if (this.thresholdSlider && thresholds[this.currentImageIndex]) {
+      let thresholdValue = thresholds[this.currentImageIndex][4];
+      this.thresholdSlider.value(thresholdValue);
+      fill(235);
+      textSize(14);
+      text(`THRESHOLD  ${thresholdValue}`, 400, 27);
     }
+
+    pop();
     this.drawModeSelection();
   }
 
   drawModeSelection() {
-    let panelX = width - 235;
-    let panelY = 10;
-    let panelW = 215;
-    let panelH = 160;
+    let panelX = width - 248;
+    let panelY = 92;
+    let panelW = 230;
+    let panelH = 174;
 
     push();
     rectMode(CORNER);
     textAlign(LEFT, CENTER);
 
-    fill(20, 20, 20);
+    fill(12, 24, 38, 232);
     stroke(255, 220);
     strokeWeight(1.2);
-    rect(panelX, panelY, panelW, panelH, 16);
+    rect(panelX, panelY, panelW, panelH, 10);
 
     noStroke();
     fill(255, 235, 180);
     textSize(16);
     textStyle(BOLD);
-    text("Key Commands", panelX + 14, panelY + 20);
-    text("c: load the carousel", panelX + 14, panelY + 40);
-    text("l: load images", panelX + 14, panelY + 60);
-    text("s: start animation", panelX + 14, panelY + 80);
-    text("p: pause animation", panelX + 14, panelY + 100);
+    text("KEY COMMANDS", panelX + 16, panelY + 22);
+    textSize(14);
+    textStyle(NORMAL);
+    fill(225);
+    text("C   load carousel", panelX + 16, panelY + 52);
+    text("L   load images", panelX + 16, panelY + 77);
+    text("S   start animation", panelX + 16, panelY + 102);
+    text("P   pause animation", panelX + 16, panelY + 127);
 
     pop();
     textAlign(CENTER, CENTER);
@@ -326,10 +386,6 @@ class Task1 {
 
     imgOut.updatePixels();
     return imgOut;
-  }
-
-  cleanImageEdges(img, thresholds) {
-
   }
 
   computeVisibleTrim(img) {
