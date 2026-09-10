@@ -58,6 +58,11 @@ class Task1 {
   }
 
   draw() {
+    this.thresholdSlider.show();
+    if (task2 && task2.thresholdSlider) {
+      task2.thresholdSlider.hide();
+    }
+
     background(this.bgColour);
     this.drawBackground();
     fill("#34ebe1");

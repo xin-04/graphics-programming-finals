@@ -122,14 +122,14 @@ function keyPressed() {
     task2.loadImages();
   }
 
-  // Key 's': start animation
-  if (keyCode === 83 && currentMenu === 1 && task2.imageLoaded) {
-    task2.startAnimation();
+  // Left arrow: show previous image pair
+  if (keyCode === LEFT_ARROW && currentMenu === 1) {
+    task2.previousPair();
   }
 
-  // Key 'p': pause animation
-  if (keyCode === 80 && currentMenu === 1 && task2.animationStarted) {
-    task2.pauseAnimation();
+  // Right arrow: show next image pair
+  if (keyCode === RIGHT_ARROW && currentMenu === 1) {
+    task2.nextPair();
   }
 
   // Key 'g': apply greyscale

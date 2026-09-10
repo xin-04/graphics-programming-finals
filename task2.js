@@ -55,9 +55,6 @@ class Task2 {
         this.imageLoaded = false;
         this.processed_image = [];
 
-        this.targetTime = 0;
-        this.waitDuration = 2000;
-        this.animationStarted = false;
         this.directionShowed = false;
 
         this.grayscaleApplied = false;
@@ -79,7 +76,7 @@ class Task2 {
         
         this.thresholdApplied = false;
         this.thresholdSlider = createSlider(0, 255, 110, 1);
-        this.thresholdSlider.position(150, 25);
+        this.thresholdSlider.position(590, 15);
         this.thresholdSlider.input(() => this.onThresholdSliderMoved());
 
         this.cachedImageIndex = -1;
@@ -254,7 +251,36 @@ class Task2 {
     }
 
     draw() {
+        this.thresholdSlider.show();
+        if (task1 && task1.thresholdSlider) {
+            task1.thresholdSlider.hide();
+        }
+
         background(this.bgColour);
+        let headerHeight = 72;
+        let imageGap = 34;
+        let imageY = headerHeight + 28;
+
+        push();
+        noStroke();
+        fill(18, 30, 42, 235);
+        rect(0, 0, width, headerHeight);
+        fill(255, 220, 150);
+        textAlign(LEFT, CENTER);
+        textSize(28);
+        textStyle(BOLD);
+        text("PANORAMA MOTION GUIDE", 34, 28);
+        fill(190, 210, 220);
+        textSize(13);
+        textStyle(NORMAL);
+        text("TASK 2  /  MOTION ESTIMATION", 36, 52);
+        fill(225);
+        textSize(14);
+        text(`THRESHOLD  ${this.thresholdSlider.value()}`, 450, 27);
+        fill(155, 180, 190);
+        text("Adjust the threshold before estimating motion", 450, 51);
+        pop();
+
         fill(0);
         if (this.imageLoaded && this.processed_image.length > 0) {
             let currentImage1 = this.processed_image[this.currentImageIndex];
@@ -268,23 +294,39 @@ class Task2 {
             currentImage1 = this.cachedProcessedImage1 || currentImage1;
             currentImage2 = this.cachedProcessedImage2 || currentImage2;
 
+            let imageX1 = (width - currentImage1.width * 2 - imageGap) / 2;
+            let imageX2 = imageX1 + currentImage1.width + imageGap;
+
+            push();
+            noStroke();
+            fill(18, 30, 42, 190);
+            rect(imageX1 - 10, imageY - 30, currentImage1.width + 20, currentImage1.height + 42, 8);
+            rect(imageX2 - 10, imageY - 30, currentImage2.width + 20, currentImage2.height + 42, 8);
+            fill(255, 220, 150);
+            textAlign(LEFT, CENTER);
+            textSize(13);
+            textStyle(BOLD);
+            text("REFERENCE FRAME", imageX1, imageY - 14);
+            text("TARGET FRAME", imageX2, imageY - 14);
+            pop();
+
             if (this.centroidApplied) {
                 let centroid1 = this.cachedCentroid1;
                 let centroid2 = this.cachedCentroid2;
                 text(
                     `Pair ${(this.currentImageIndex / 2) + 1}: dx=${centroid2[0] - centroid1[0]}, dy=${centroid2[1] - centroid1[1]}`,
-                    currentImage1.width / 2,
-                    currentImage1.height + 20
+                    width / 2,
+                    imageY + currentImage1.height + 28
                 );
             }
 
-            image(currentImage1, 0, 0);
-            image(currentImage2, width / 2, 0);
+            image(currentImage1, imageX1, imageY);
+            image(currentImage2, imageX2, imageY);
 
             if (this.directionShowed) {
                 let direction = this.cachedDirection;
-                let directionX = currentImage1.width / 2;
-                let directionY = currentImage1.height + 60;
+                let directionX = width / 2;
+                let directionY = imageY + currentImage1.height + 57;
 
                 text(`Basic Estimated Direction: ${direction}`, directionX, directionY);
                 if (direction && direction !== "UNDEFINED") {
@@ -293,7 +335,8 @@ class Task2 {
 
                 // EXTENSION
                 this.hasShownDirectionArrowsForThreeSeconds = this.drawBlockMotionVectors(
-                    width / 2,
+                    imageX2,
+                    imageY,
                     this.hasShownDirectionArrowsForThreeSeconds
                 );
                 text(`Block-based Estimated Direction: ${this.blockMotionDirection}`, directionX, directionY + 40);
@@ -301,62 +344,85 @@ class Task2 {
             }
         }
 
-        if (this.animationStarted) {
-            if (millis() >= this.targetTime && this.hasShownDirectionArrowsForThreeSeconds) {
-                this.currentImageIndex = (this.currentImageIndex + 2) % task2_images.length;
-                this.targetTime = millis() + this.waitDuration;
-            }
-        }
-
+        push();
+        textAlign(CENTER, CENTER);
+        textSize(13);
+        fill(20, 35, 45, 220);
+        rect(190, height - 76, 520, 48, 8);
         fill(255);
-        text("Task 2", 50, 50);
-        text(this.thresholdSlider.value(), 350, 50);
+        textStyle(BOLD);
+        text(`PAIR ${(this.currentImageIndex / 2) + 1} OF ${this.processed_image.length / 2}`, 320, height - 52);
+        fill(185, 205, 210);
+        textStyle(NORMAL);
+        text("Left / Right arrows to navigate", 555, height - 52);
+        pop();
         this.drawModeSelection();
     }
 
     drawModeSelection() {
-        let panelW = 215;
-        let panelH = 220;
-        let panelX = width - panelW - 20;
-        let panelY = height - panelH - 20;
+        let panelW = 285;
+        let panelH = 230;
+        let panelX = 850;
+        let panelY = height - panelH - 16;
 
         push();
         rectMode(CORNER);
         textAlign(LEFT, CENTER);
 
-        fill(20, 20, 20);
+        fill(18, 30, 42, 245);
         stroke(255, 220);
         strokeWeight(1.2);
-        rect(panelX, panelY, panelW, panelH, 16);
+        rect(panelX, panelY, panelW, panelH, 10);
 
         noStroke();
         fill(255, 235, 180);
-        textSize(16);
+        textSize(17);
         textStyle(BOLD);
-        text("Key Commands", panelX + 14, panelY + 20);
-        text("p: load the panorama", panelX + 14, panelY + 40);
-        text("i: load image pairs", panelX + 14, panelY + 60);
-        text("g: apply grayscale", panelX + 14, panelY + 80);
-        text("e: apply edge filter", panelX + 14, panelY + 100);
-        text("t: apply thresholding", panelX + 14, panelY + 120);
-        text("n: compute centroid", panelX + 14, panelY + 140);
-        text("d: display arrows", panelX + 14, panelY + 160);
-        text("s: start animation", panelX + 14, panelY + 180);
-        text("p: pause animation", panelX + 14, panelY + 200);
+        text("KEY COMMANDS", panelX + 18, panelY + 22);
+        textSize(14);
+        textStyle(NORMAL);
+        fill(220);
+        text("P   panorama", panelX + 18, panelY + 48);
+        text("I   load image pairs", panelX + 18, panelY + 69);
+        text("G   grayscale", panelX + 18, panelY + 90);
+        text("E   edge filter", panelX + 18, panelY + 111);
+        text("T   thresholding", panelX + 18, panelY + 132);
+        text("N   compute centroid", panelX + 18, panelY + 153);
+        text("D   display arrows", panelX + 18, panelY + 174);
+        text("LEFT / RIGHT   change pair", panelX + 18, panelY + 198);
 
         pop();
         textAlign(CENTER, CENTER);
         textStyle(NORMAL);
     }
 
-    startAnimation() {
-        this.targetTime = millis() + this.waitDuration;
-        this.animationStarted = true;
+    nextPair() {
+        if (!this.imageLoaded || this.processed_image.length < 2) {
+            return;
+        }
+
+        let pairCount = this.processed_image.length / 2;
+        let currentPair = this.currentImageIndex / 2;
+        this.currentImageIndex = ((currentPair + 1) % pairCount) * 2;
+        this.resetBlockMotionDisplay();
     }
 
-    pauseAnimation() {
-        this.targetTime = 0;
-        this.animationStarted = false;
+    previousPair() {
+        if (!this.imageLoaded || this.processed_image.length < 2) {
+            return;
+        }
+
+        let pairCount = this.processed_image.length / 2;
+        let currentPair = this.currentImageIndex / 2;
+        this.currentImageIndex = ((currentPair - 1 + pairCount) % pairCount) * 2;
+        this.resetBlockMotionDisplay();
+    }
+
+    resetBlockMotionDisplay() {
+        this.blockMotionVectors = [];
+        this.blockMotionDirection = "UNDEFINED";
+        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.directionArrowsShownAt = 0;
     }
 
     loadPanorama() {
@@ -492,7 +558,11 @@ class Task2 {
         return this.decideMotion([0, 0], [averageDX, averageDY]);
     }
 
-    drawBlockMotionVectors(imageOffsetX = 0, hasShownDirectionArrowsForThreeSeconds = false) {
+    drawBlockMotionVectors(
+        imageOffsetX = 0,
+        imageOffsetY = 0,
+        hasShownDirectionArrowsForThreeSeconds = false
+    ) {
         if (this.directionArrowsShownAt === 0) {
             this.directionArrowsShownAt = millis();
         }
@@ -503,7 +573,7 @@ class Task2 {
                 this.drawDirectionArrow(
                     direction,
                     imageOffsetX + vector.x + vector.dx,
-                    vector.y + vector.dy,
+                    imageOffsetY + vector.y + vector.dy,
                     16
                 );
             }
