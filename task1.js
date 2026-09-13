@@ -1,44 +1,15 @@
-/**
- * REASON WHY I USED RGB THRESHOLDING ACROSS ALL IMAGES
- * I tested both RGB and HSB thresholding on all 8 images. RGB thresholding
- * outperformed HSB in every case. For low-saturation content (which are most
- * images, given white/neutral backgrounds and dark or white clothing), HSB's
- * hue channel is unstable near zero saturation, causing incomplete background
- * removal or foreground erosion. Even for image 6, which has a strongly 
- * saturated blue shirt, HSB left more residual background than RGB. This is
- * likely due to hue noise from subtle background brightness variation.
- * Image 8 showed a different failure scenario: HSB removed foreground skin
- * pixels because skin tone and the subject's tan blazer are hue-similar,
- * despite both having moderate saturation. Across the images, RGB's direct
- * comparison of brightness and colour together proved more robust than hue-
- * based discrimination.
- * 
- * IMAGE 2
- * Image 2 has the most leftover background pixels due to the model's frizzy hair.
- * I tried feathering (smooths the transition between foreground and background) 
- * and I found a direct trade-off between smoothing hair edges and preserving the
- * white shirt. This occurs because colour-distance thresholding cannout distinguish
- * two regions of near-identical colour regardless of feathering. Even if it can 
- * smooth the edges, it ended up sacrificing large chunks of the white shirt.
- * I chose to preserve the shirt, accepting the edge on the hair as a result.
- * 
- */
-
-
 class Task1 {
   constructor() {
     this.bg = bgImg;
     this.currentImageIndex = 0;
     this.bgLoaded = false;
     this.imageLoaded = false;
-    this.processed_image = [];
+    this.processedImages = [];
     this.imageTrims = [];
 
     this.targetTime = 0;
     this.waitDuration = 5000;
     this.fadeDuration = 500;
-    this.timerStarted = false;
-
     this.animationStarted = false;
     this.transitioning = false;
     this.transitionStart = 0;
@@ -46,7 +17,6 @@ class Task1 {
     this.transitionTo = 0;
     this.holdStartTime = 0;
     this.panProgress = 0;
-    this.bgPanProgress = 0;
     this.bgScrollX = 0;
     this.bgScrollLastTime = 0;
     this.bgScrollSpeed = 80;
@@ -60,12 +30,12 @@ class Task1 {
   }
 
   loadImages() {
-    this.processed_image = [];
+    this.processedImages = [];
     this.imageTrims = [];
-    for (let i = 0; i < task1_images.length; i++) {
-      let cleaned = this.applyThreshold(task1_images[i], thresholds[i]);
-      this.processed_image.push(cleaned);
-      this.imageTrims.push(this.computeVisibleTrim(cleaned));
+    for (let imageIndex = 0; imageIndex < task1Images.length; imageIndex++) {
+      let cleanedImage = this.applyThreshold(task1Images[imageIndex], thresholds[imageIndex]);
+      this.processedImages.push(cleanedImage);
+      this.imageTrims.push(this.computeVisibleTrim(cleanedImage));
     }
     this.imageLoaded = true;
   }
@@ -74,7 +44,6 @@ class Task1 {
     this.transitioning = false;
     this.animationStarted = true;
 
-    this.timerStarted = true;
     this.holdStartTime = millis();
     this.targetTime = this.holdStartTime + this.waitDuration;
     this.panProgress = 0;
@@ -87,8 +56,23 @@ class Task1 {
     this.transitioning = true;
     this.transitionStart = millis();
     this.transitionFrom = this.currentImageIndex;
-    this.transitionTo = (this.currentImageIndex + 1) % this.processed_image.length;
+    this.transitionTo = (this.currentImageIndex + 1) % this.processedImages.length;
     this.panProgress = 0;
+  }
+
+  resetAnimation() {
+    this.currentImageIndex = 0;
+    this.targetTime = 0;
+    this.animationStarted = false;
+    this.transitioning = false;
+    this.transitionStart = 0;
+    this.transitionFrom = 0;
+    this.transitionTo = 0;
+    this.holdStartTime = 0;
+    this.panProgress = 0;
+    this.bgScrollX = 0;
+    this.bgScrollLastTime = 0;
+    this.movingTextStartTime = 0;
   }
 
   draw() {
@@ -104,8 +88,7 @@ class Task1 {
     fill("#34ebe1");
     imageMode(CORNER);
 
-    if (this.imageLoaded && this.processed_image.length > 0) {
-      console.log(`Image index ${this.currentImageIndex}`);
+    if (this.imageLoaded && this.processedImages.length > 0) {
       // FADE IN & OUT LOGIC
       if (this.animationStarted && this.transitioning) {
         this.animateFade();
@@ -160,10 +143,10 @@ class Task1 {
     let alphaNext = map(elapsed, 0, this.fadeDuration, 0, 255);
     let alphaCurrent = 255 - alphaNext;
 
-    let fromImg = this.processed_image[this.transitionFrom];
-    let toImg = this.processed_image[this.transitionTo];
+    let fromImage = this.processedImages[this.transitionFrom];
+    let toImage = this.processedImages[this.transitionTo];
 
-    // fromImg will keep its zoom level when exiting
+    // The outgoing image keeps its final zoom level.
     let wasFromEven = (this.transitionFrom % 2 === 0);
     let fromEndZoom = wasFromEven ? 1.4 : 0.7;
 
@@ -172,18 +155,18 @@ class Task1 {
     let fromScale = this.getImageScale(this.transitionFrom);
     let toScale = this.getImageScale(this.transitionTo);
 
-    // fromImg will end animation on the right side
-    let fromBounds = this.getFittedBounds(fromImg, fromEndZoom * fromScale, 1.0, false, fromTrim);
+    // The outgoing image ends on the right side.
+    let fromBounds = this.getFittedBounds(fromImage, fromEndZoom * fromScale, 1.0, false, fromTrim);
 
-    // toImg always starts on the left side, explicitly anchoring visible content
-    let toBounds = this.getFittedBounds(toImg, 1.0 * toScale, 0.0, true, toTrim);
+    // The incoming image starts on the left side, explicitly anchoring visible content.
+    let toBounds = this.getFittedBounds(toImage, 1.0 * toScale, 0.0, true, toTrim);
 
     push();
     tint(255, alphaCurrent);
-    image(fromImg, fromBounds.x, fromBounds.y, fromBounds.w, fromBounds.h);
+    image(fromImage, fromBounds.x, fromBounds.y, fromBounds.w, fromBounds.h);
 
     tint(255, alphaNext);
-    image(toImg, toBounds.x, toBounds.y, toBounds.w, toBounds.h);
+    image(toImage, toBounds.x, toBounds.y, toBounds.w, toBounds.h);
     pop();
 
     this.drawMovingText(fromEndZoom * fromScale, alphaCurrent);
@@ -194,14 +177,13 @@ class Task1 {
       this.currentImageIndex = this.transitionTo;
       this.holdStartTime = millis();
       this.panProgress = 0;
-      this.bgPanProgress = 0;
       this.targetTime = this.holdStartTime + this.waitDuration;
     }
   }
 
   animateZoom() {
     imageMode(CORNER);
-    let currentImage = this.processed_image[this.currentImageIndex];
+    let currentImage = this.processedImages[this.currentImageIndex];
     let currentTrim = this.imageTrims[this.currentImageIndex] || { left: 0, right: 0 };
 
     // Calculate progress from holdStartTime
@@ -218,7 +200,6 @@ class Task1 {
     let indexScale = this.getImageScale(this.currentImageIndex);
     // Smoothly interpolate current zoom level
     let zoomFactor = lerp(startZoom, endZoom, progress) * indexScale;
-    this.bgPanProgress = progress;
 
     // Moves continuously from left to right while scaling
     let bounds = this.getFittedBounds(currentImage, zoomFactor, progress, progress <= 0.001, currentTrim);
@@ -236,19 +217,20 @@ class Task1 {
   }
 
   drawRestingImage() {
-    let currentImage = this.processed_image[this.currentImageIndex];
+    let currentImage = this.processedImages[this.currentImageIndex];
     let currentTrim = this.imageTrims[this.currentImageIndex] || { left: 0, right: 0 };
     let indexScale = this.getImageScale(this.currentImageIndex);
     let bounds = this.getFittedBounds(currentImage, 1.0 * indexScale, 0.0, true, currentTrim);
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
   }
 
-  drawMovingText(zoomFactor = 1.0, alpha = 255) {
+  drawMovingText(zoomFactor = 2.0, alpha = 255) {
     let movingText = "Cat Butler Audition 2026: Who Shall Serve?";
+    let baseTextSize = 32;
 
     push();
     textAlign(LEFT, CENTER);
-    textSize(32);
+    textSize(baseTextSize);
     textStyle(BOLD);
     fill(255, 220, 150, alpha);
 
@@ -259,12 +241,9 @@ class Task1 {
     let x = width - offset;
 
     let textY = height - 55;
-    push();
-    translate(x, textY);
-    scale(zoomFactor);
-    text(movingText, 0, 0);
-    text(movingText, cycleWidth, 0);
-    pop();
+    textSize(baseTextSize * zoomFactor);
+    text(movingText, x, textY);
+    text(movingText, x + cycleWidth * zoomFactor, textY);
     pop();
   }
 
@@ -373,7 +352,6 @@ class Task1 {
 
   pauseAnimation() {
     this.targetTime = 0;
-    this.timerStarted = false;
     this.animationStarted = false;
   }
 

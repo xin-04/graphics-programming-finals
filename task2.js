@@ -1,83 +1,31 @@
-/**
- * EXTENSION
- * METHODS: aggregateBlockMotion, drawBlockMotionVectors, applyBlockMotionEstimation
- * PROS: more advanced than basic motion estimation via centroid
- * CONS: more computationally demanding
- * 
- * MY CHALLENGES: I tried a coarse-to-fine searching to make applyBlockMotionEstimation cheaper:
- * sparsely sampling candidates at a fixed step, then refine around the best results (standard
- * optimisation used in video compression); roughly (2×160/4+1)^2 = 6,561 candidates 
- * instead of the full 321^2 = 103,041.
- * 
- * Testing against the given dataset showed significant inaccuracy. My initial implementation
- * refined only a single best coarse candidate, which I suspected could lock onto the wrong local
- * minimum on a noisy SAD surface. I extended the coarse candidates, thinking this would make 
- * the search more robust to a misleading single best guess. However, this didn't resolve the
- * accuracy loss.
- * 
- * On reflecton, I beleive the underlying issue is not ranking but sampling (which offsets get
- * tested). My block content is not smooth photographic detail but sparse, threshold edge outlines.
- * The true best-matching offset for such content can correspond to a narrow alignment window.  
- * If the coarse sampling step never lands inside that narrow window, no amount of refining around
- * top candidates can estimate the correct direction, because it was never sampled in the first place.
- * Keeping more coarse candidates (I tested 10) did not help, which supports my explanation that
- * the problem is undersampling, not misranking.
- *
- * Given this, I decided to keep the full exhaustive search for correctness, since motion estimation
- * accuracy across all pairs is the priority for this task. I kept the early exit SAD optimisation
- * (abandoning a candidate once its running SAD already exceeds the current best), which reduces
- * computation without any accuracy cost since it never discards a candidate that could still win.
- * 
- * To address the practical performance problem (lag while dragging the threshold slider), I added 
- * debouncing: block motion is only recalculated 200ms after the slider stops moving, rather than on
- * every intermediate value. This solved the responsiveness problem I originally set out to fix,
- * without compromising the estimator's accuracy.
- * 
- * ===================================================================
- * 
- * ISSUE: pair 6 takes more time and causes time discrepancies for other pairs
- * FOUND: pair 6 has more pixels than the others
- * FIX: apply a boolean check to make sure program only transitions to the next image pair 
- *      after drawBlockMotionVectors has passed 3 seconds
- * 
- * FIXED
- * ISSUE: pair 5-8 are not estimated correctly (inconsistent arrows)
- * FOUND: pair 5-8 has bigger leap in centroid values
- * FIX: even bigger searchRange
- */
-
-
-
 class Task2 {
     constructor() {
         this.bgColour = 240;
         this.currentImageIndex = 0;
         this.imageLoaded = false;
-        this.processed_image = [];
+        this.processedImages = [];
 
         this.directionShowed = false;
 
         this.grayscaleApplied = false;
         this.edgeApplied = false;
-        this.edgeMatrixX =
-            [
-                [-1, -2, -1],
-                [0, 0, 0],
-                [1, 2, 1]
-            ];
-        this.edgeMatrixY =
-            [
-                [-1, 0, 1],
-                [-2, 0, 2],
-                [-1, 0, 1]
-            ];
+        this.edgeMatrixX = [
+            [-1, -2, -1],
+            [0, 0, 0],
+            [1, 2, 1]
+        ];
+        this.edgeMatrixY = [
+            [-1, 0, 1],
+            [-2, 0, 2],
+            [-1, 0, 1]
+        ];
         
         this.centroidApplied = false;
         
         this.thresholdApplied = false;
         this.thresholdSlider = createSlider(0, 255, 110, 1);
         this.thresholdSlider.position(590, 15);
-        this.thresholdSlider.input(() => this.onThresholdSliderMoved());
+        this.thresholdSlider.changed(() => this.onThresholdSliderChanged());
 
         this.cachedImageIndex = -1;
         this.cachedGrayscaleApplied = false;
@@ -109,42 +57,56 @@ class Task2 {
         this.minimumBlockContentRatio = 0.05;
         this.blockMotionVectors = [];
         this.blockMotionDirection = "UNDEFINED";
-        this.blockMotionUpdateTimer = null;
-        this.blockMotionDebounceDelay = 200;
-        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.blockMotionShown = false;
+        this.blockMotionProcessingTime = null;
+        this.hasShownDirectionArrows = false;
         this.directionArrowsShownAt = 0;
     }
 
     loadImages() {
-        this.processed_image = [];
-        for (let i = 0; i < task2_images.length; i++) {
-            this.processed_image.push(task2_images[i]);
+        this.processedImages = [];
+        for (let imageIndex = 0; imageIndex < task2Images.length; imageIndex++) {
+            this.processedImages.push(task2Images[imageIndex]);
         }
         this.imageLoaded = true;
     }
 
-    onThresholdSliderMoved() {
+    onThresholdSliderChanged() {
         if (!this.imageLoaded || !this.thresholdApplied || !this.centroidApplied) {
             return;
         }
 
-        // Update the visible threshold immediately, but defer block matching.
+        // Refresh the processed images before using the new threshold.
         this.updateCachedProcessedImages(false);
-        this.blockMotionVectors = [];
-        this.blockMotionDirection = "UNDEFINED";
 
-        if (this.blockMotionUpdateTimer !== null) {
-            clearTimeout(this.blockMotionUpdateTimer);
+        if (this.blockMotionShown) {
+            this.runBlockMotionEstimation();
+        } else {
+            this.resetBlockMotionDisplay();
+        }
+    }
+
+    resetAnimation() {
+        this.resetBlockMotionDisplay();
+    }
+
+    runBlockMotionEstimation() {
+        this.updateCachedProcessedImages(false);
+
+        if (!this.thresholdApplied || !this.cachedProcessedImage1 || !this.cachedProcessedImage2) {
+            return;
         }
 
-        this.blockMotionUpdateTimer = setTimeout(() => {
-            this.blockMotionUpdateTimer = null;
-            this.updateCachedProcessedImages(true, true);
-        }, this.blockMotionDebounceDelay);
+        this.blockMotionVectors = this.applyBlockMotionEstimation(
+            this.cachedProcessedImage1,
+            this.cachedProcessedImage2
+        );
+        this.blockMotionDirection = this.aggregateBlockMotion(this.blockMotionVectors);
+        this.blockMotionShown = true;
     }
 
     updateCachedProcessedImages(calculateBlockMotion = true, forceUpdate = false) {
-        if (!this.imageLoaded || this.processed_image.length < 2) {
+        if (!this.imageLoaded || this.processedImages.length < 2) {
             return;
         }
 
@@ -174,72 +136,69 @@ class Task2 {
             this.cachedThresholdedImage2 = null;
         }
 
-        let raw1 = this.processed_image[this.currentImageIndex];
-        let raw2 = this.processed_image[this.currentImageIndex + 1];
+        let referenceImage = this.processedImages[this.currentImageIndex];
+        let targetImage = this.processedImages[this.currentImageIndex + 1];
 
-        if (this.cachedRawImage1 !== raw1) {
-            this.cachedRawImage1 = raw1;
+        if (this.cachedRawImage1 !== referenceImage) {
+            this.cachedRawImage1 = referenceImage;
             this.cachedGrayscaleImage1 = null;
             this.cachedEdgeImage1 = null;
             this.cachedThresholdedImage1 = null;
         }
-        if (this.cachedRawImage2 !== raw2) {
-            this.cachedRawImage2 = raw2;
+        if (this.cachedRawImage2 !== targetImage) {
+            this.cachedRawImage2 = targetImage;
             this.cachedGrayscaleImage2 = null;
             this.cachedEdgeImage2 = null;
             this.cachedThresholdedImage2 = null;
         }
 
-        let source1 = raw1;
-        let source2 = raw2;
+        let referenceSource = referenceImage;
+        let targetSource = targetImage;
 
         if (this.grayscaleApplied) {
             if (!this.cachedGrayscaleImage1) {
-                this.cachedGrayscaleImage1 = this.computeGrayscaleImage(raw1);
+                this.cachedGrayscaleImage1 = this.computeGrayscaleImage(referenceImage);
             }
             if (!this.cachedGrayscaleImage2) {
-                this.cachedGrayscaleImage2 = this.computeGrayscaleImage(raw2);
+                this.cachedGrayscaleImage2 = this.computeGrayscaleImage(targetImage);
             }
-            source1 = this.cachedGrayscaleImage1;
-            source2 = this.cachedGrayscaleImage2;
+            referenceSource = this.cachedGrayscaleImage1;
+            targetSource = this.cachedGrayscaleImage2;
         }
 
         if (this.edgeApplied) {
             if (!this.cachedEdgeImage1) {
-                this.cachedEdgeImage1 = this.computeEdgeImage(source1);
+                this.cachedEdgeImage1 = this.computeEdgeImage(referenceSource);
             }
             if (!this.cachedEdgeImage2) {
-                this.cachedEdgeImage2 = this.computeEdgeImage(source2);
+                this.cachedEdgeImage2 = this.computeEdgeImage(targetSource);
             }
-            source1 = this.cachedEdgeImage1;
-            source2 = this.cachedEdgeImage2;
+            referenceSource = this.cachedEdgeImage1;
+            targetSource = this.cachedEdgeImage2;
         }
 
         if (this.thresholdApplied) {
             if (!this.cachedThresholdedImage1 || this.cachedThresholdValue !== thresholdValue) {
-                this.cachedThresholdedImage1 = this.applyThresholdToEdge(source1, thresholdValue);
+                this.cachedThresholdedImage1 = this.applyThresholdToEdge(referenceSource, thresholdValue);
             }
             if (!this.cachedThresholdedImage2 || this.cachedThresholdValue !== thresholdValue) {
-                this.cachedThresholdedImage2 = this.applyThresholdToEdge(source2, thresholdValue);
+                this.cachedThresholdedImage2 = this.applyThresholdToEdge(targetSource, thresholdValue);
             }
-            source1 = this.cachedThresholdedImage1;
-            source2 = this.cachedThresholdedImage2;
+            referenceSource = this.cachedThresholdedImage1;
+            targetSource = this.cachedThresholdedImage2;
         }
 
-        this.cachedProcessedImage1 = source1;
-        this.cachedProcessedImage2 = source2;
+        this.cachedProcessedImage1 = referenceSource;
+        this.cachedProcessedImage2 = targetSource;
 
-        if (this.thresholdApplied && calculateBlockMotion) {
-            this.blockMotionVectors = this.applyBlockMotionEstimation(source1, source2);
-            this.blockMotionDirection = this.aggregateBlockMotion(this.blockMotionVectors);
-        } else if (!this.thresholdApplied) {
+        if (!this.thresholdApplied) {
             this.blockMotionVectors = [];
             this.blockMotionDirection = "UNDEFINED";
         }
 
         if (this.centroidApplied) {
-            let centroid1 = this.computeCentroid(source1);
-            let centroid2 = this.computeCentroid(source2);
+            let centroid1 = this.computeCentroid(referenceSource);
+            let centroid2 = this.computeCentroid(targetSource);
             this.cachedCentroid1 = centroid1;
             this.cachedCentroid2 = centroid2;
             this.cachedDirection = this.decideMotion(this.cachedCentroid1, this.cachedCentroid2);
@@ -282,13 +241,9 @@ class Task2 {
         pop();
 
         fill(0);
-        if (this.imageLoaded && this.processed_image.length > 0) {
-            let currentImage1 = this.processed_image[this.currentImageIndex];
-            let currentImage2 = this.processed_image[this.currentImageIndex + 1];
-
-            // let scale = 1;
-            // let w = currentImage.width * scale;
-            // let h = currentImage.height * scale;
+        if (this.imageLoaded && this.processedImages.length > 0) {
+            let currentImage1 = this.processedImages[this.currentImageIndex];
+            let currentImage2 = this.processedImages[this.currentImageIndex + 1];
 
             this.updateCachedProcessedImages();
             currentImage1 = this.cachedProcessedImage1 || currentImage1;
@@ -297,18 +252,8 @@ class Task2 {
             let imageX1 = (width - currentImage1.width * 2 - imageGap) / 2;
             let imageX2 = imageX1 + currentImage1.width + imageGap;
 
-            push();
-            noStroke();
-            fill(18, 30, 42, 190);
-            rect(imageX1 - 10, imageY - 30, currentImage1.width + 20, currentImage1.height + 42, 8);
-            rect(imageX2 - 10, imageY - 30, currentImage2.width + 20, currentImage2.height + 42, 8);
-            fill(255, 220, 150);
-            textAlign(LEFT, CENTER);
-            textSize(13);
-            textStyle(BOLD);
-            text("REFERENCE FRAME", imageX1, imageY - 14);
-            text("TARGET FRAME", imageX2, imageY - 14);
-            pop();
+            this.drawImagePanel(currentImage1, imageX1, imageY, "REFERENCE FRAME");
+            this.drawImagePanel(currentImage2, imageX2, imageY, "TARGET FRAME");
 
             if (this.centroidApplied) {
                 let centroid1 = this.cachedCentroid1;
@@ -330,16 +275,23 @@ class Task2 {
 
                 text(`Basic Estimated Direction: ${direction}`, directionX, directionY);
                 if (direction && direction !== "UNDEFINED") {
-                    this.drawDirectionArrow(direction, directionX, directionY + 20);
+                    this.drawDirectionArrow(direction, directionX, directionY + 40);
                 }
 
-                // EXTENSION
-                this.hasShownDirectionArrowsForThreeSeconds = this.drawBlockMotionVectors(
-                    imageX2,
-                    imageY,
-                    this.hasShownDirectionArrowsForThreeSeconds
-                );
-                text(`Block-based Estimated Direction: ${this.blockMotionDirection}`, directionX, directionY + 40);
+                if (this.blockMotionShown) {
+                    // EXTENSION
+                    this.hasShownDirectionArrows = this.drawBlockMotionVectors(
+                        imageX2,
+                        imageY,
+                        this.hasShownDirectionArrows
+                    );
+                    text(`Block-based Estimated Direction: ${this.blockMotionDirection}`, directionX, directionY + 80);
+                    text(
+                        `Block estimation time: ${this.blockMotionProcessingTime} ms`,
+                        directionX,
+                        directionY + 100
+                    );
+                }
 
             }
         }
@@ -351,7 +303,7 @@ class Task2 {
         rect(190, height - 76, 520, 48, 8);
         fill(255);
         textStyle(BOLD);
-        text(`PAIR ${(this.currentImageIndex / 2) + 1} OF ${this.processed_image.length / 2}`, 320, height - 52);
+        text(`PAIR ${(this.currentImageIndex / 2) + 1} OF ${this.processedImages.length / 2}`, 320, height - 52);
         fill(185, 205, 210);
         textStyle(NORMAL);
         text("Left / Right arrows to navigate", 555, height - 52);
@@ -359,9 +311,22 @@ class Task2 {
         this.drawModeSelection();
     }
 
+    drawImagePanel(imageToDraw, x, y, label) {
+        push();
+        noStroke();
+        fill(18, 30, 42, 190);
+        rect(x - 10, y - 30, imageToDraw.width + 20, imageToDraw.height + 42, 8);
+        fill(255, 220, 150);
+        textAlign(LEFT, CENTER);
+        textSize(13);
+        textStyle(BOLD);
+        text(label, x, y - 14);
+        pop();
+    }
+
     drawModeSelection() {
         let panelW = 285;
-        let panelH = 230;
+        let panelH = 250;
         let panelX = 850;
         let panelY = height - panelH - 16;
 
@@ -388,8 +353,9 @@ class Task2 {
         text("E   edge filter", panelX + 18, panelY + 111);
         text("T   thresholding", panelX + 18, panelY + 132);
         text("N   compute centroid", panelX + 18, panelY + 153);
-        text("D   display arrows", panelX + 18, panelY + 174);
-        text("LEFT / RIGHT   change pair", panelX + 18, panelY + 198);
+        text("D   display arrows", panelX + 18, panelY + 175);
+        text("B   block-based estimate", panelX + 18, panelY + 198);
+        text("LEFT / RIGHT   change pair", panelX + 18, panelY + 220);
 
         pop();
         textAlign(CENTER, CENTER);
@@ -397,22 +363,22 @@ class Task2 {
     }
 
     nextPair() {
-        if (!this.imageLoaded || this.processed_image.length < 2) {
+        if (!this.imageLoaded || this.processedImages.length < 2) {
             return;
         }
 
-        let pairCount = this.processed_image.length / 2;
+        let pairCount = this.processedImages.length / 2;
         let currentPair = this.currentImageIndex / 2;
         this.currentImageIndex = ((currentPair + 1) % pairCount) * 2;
         this.resetBlockMotionDisplay();
     }
 
     previousPair() {
-        if (!this.imageLoaded || this.processed_image.length < 2) {
+        if (!this.imageLoaded || this.processedImages.length < 2) {
             return;
         }
 
-        let pairCount = this.processed_image.length / 2;
+        let pairCount = this.processedImages.length / 2;
         let currentPair = this.currentImageIndex / 2;
         this.currentImageIndex = ((currentPair - 1 + pairCount) % pairCount) * 2;
         this.resetBlockMotionDisplay();
@@ -421,7 +387,9 @@ class Task2 {
     resetBlockMotionDisplay() {
         this.blockMotionVectors = [];
         this.blockMotionDirection = "UNDEFINED";
-        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.blockMotionShown = false;
+        this.blockMotionProcessingTime = null;
+        this.hasShownDirectionArrows = false;
         this.directionArrowsShownAt = 0;
     }
 
@@ -561,7 +529,7 @@ class Task2 {
     drawBlockMotionVectors(
         imageOffsetX = 0,
         imageOffsetY = 0,
-        hasShownDirectionArrowsForThreeSeconds = false
+        hasShownDirectionArrows = false
     ) {
         if (this.directionArrowsShownAt === 0) {
             this.directionArrowsShownAt = millis();
@@ -579,12 +547,12 @@ class Task2 {
             }
         }
 
-        if (!hasShownDirectionArrowsForThreeSeconds &&
+        if (!hasShownDirectionArrows &&
             millis() - this.directionArrowsShownAt >= 3000) {
-            hasShownDirectionArrowsForThreeSeconds = true;
+            hasShownDirectionArrows = true;
         }
 
-        return hasShownDirectionArrowsForThreeSeconds;
+        return hasShownDirectionArrows;
     }
 
     /**
@@ -592,14 +560,13 @@ class Task2 {
      * 
      * Divides the reference frame into a grid of fixed-size blocks
      * Independently estimate how each block moved between two frames
-     * Reveals whether motion is uniform across the image (pure translation) 
-     * or varies spatially (due to scale change, rotation, or non-rigid movement)
+     * Reveals whether motion is uniform across the image or varies spatially 
      * 
      * PERFORMANCE NOTE
      * Candidate count per block is (2*searchRange+1)^2
      * This is the most computationally expensive part of the extension
      * searchRange must be large enough to cover the largest expected displacement
-     * between frames, or the matcher cannot find the true position at all.`
+     * between frames, or the matcher cannot find the true position at all.
      * 
      * @param {p5.Image} referenceFrame - frame A diced into blocks
      * @param {p5.Image} targetFrame - frame B searched for matches
@@ -620,17 +587,12 @@ class Task2 {
             return [];
         }
 
+        let startTime = millis();
         referenceFrame.loadPixels();
         targetFrame.loadPixels();
 
         let vectors = [];
 
-        // DEBUG
-        let totalPixelsAboveZero = 0;
-        let totalBlocksConsidered = 0;
-        let totalBlocksSearched = 0;
-
-        // bx = blockX; by = blockY
         for (let by = 0; by < referenceFrame.height; by += blockSize) {
             for (let bx = 0; bx < referenceFrame.width; bx += blockSize) {
                 let blockWidth = min(blockSize, referenceFrame.width - bx);
@@ -641,8 +603,6 @@ class Task2 {
                 // Count non-zero (thresholded) pixels
                 for (let y = 0; y < blockHeight; y++) {
                     for (let x = 0; x < blockWidth; x++) {
-                        totalBlocksConsidered++;
-
                         let referenceIndex = ((by + y) * referenceFrame.width + bx + x) * 4;
                         if (referenceFrame.pixels[referenceIndex] > 0) {
                             pixelCount++;
@@ -650,15 +610,11 @@ class Task2 {
                     }
                 }
 
-                totalPixelsAboveZero += pixelCount;
-
                 // Blocks with too little content or too much are skipped
                 let minimumPixelCount = Math.ceil(blockArea * this.minimumBlockContentRatio);
                 if (pixelCount < minimumPixelCount || pixelCount === blockArea) {
                     continue;
                 }
-
-                totalBlocksSearched++;
 
                 let bestSAD = Infinity;
                 let bestOffset = { dx: 0, dy: 0 };
@@ -699,8 +655,6 @@ class Task2 {
                     }
                 }
 
-                console.log(`block(${bx},${by}) dx=${bestOffset.dx} dy=${bestOffset.dy} sad=${bestSAD}`);
-
                 vectors.push({
                     x: bx,
                     y: by,
@@ -712,24 +666,14 @@ class Task2 {
             }
         }
 
-        console.log(
-            `Motion estimation summary — ` +
-            `pixels>0: ${totalPixelsAboveZero}, ` +
-            `blocks total: ${totalBlocksConsidered}, ` +
-            `blocks searched: ${totalBlocksSearched}, ` +
-            `searchRange: ${searchRange}`
-        );
-
+        this.blockMotionProcessingTime = millis() - startTime;
         this.blockMotionVectors = vectors;
-        this.hasShownDirectionArrowsForThreeSeconds = false;
+        this.hasShownDirectionArrows = false;
         this.directionArrowsShownAt = 0;
         return vectors;
     }
 
     computeCentroid(img) {
-        // take pixels coordinates from the thresholded result
-        // add together all selected pixel x and y values
-        // divide by the number of selected pixels to get avg
         img.loadPixels();
 
         let totalX = 0;
