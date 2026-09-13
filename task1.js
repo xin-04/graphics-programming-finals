@@ -186,7 +186,8 @@ class Task1 {
     image(toImg, toBounds.x, toBounds.y, toBounds.w, toBounds.h);
     pop();
 
-    this.drawMovingText();
+    this.drawMovingText(fromEndZoom * fromScale, alphaCurrent);
+    this.drawMovingText(toScale, alphaNext);
 
     if (elapsed >= this.fadeDuration) {
       this.transitioning = false;
@@ -223,7 +224,7 @@ class Task1 {
     let bounds = this.getFittedBounds(currentImage, zoomFactor, progress, progress <= 0.001, currentTrim);
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
 
-    this.drawMovingText(progress);
+    this.drawMovingText(zoomFactor);
   }
 
   updateAnimationTimer() {
@@ -242,14 +243,14 @@ class Task1 {
     image(currentImage, bounds.x, bounds.y, bounds.w, bounds.h);
   }
 
-  drawMovingText() {
+  drawMovingText(zoomFactor = 1.0, alpha = 255) {
     let movingText = "Cat Butler Audition 2026: Who Shall Serve?";
 
     push();
     textAlign(LEFT, CENTER);
     textSize(32);
     textStyle(BOLD);
-    fill(255, 220, 150);
+    fill(255, 220, 150, alpha);
 
     let textWidthValue = textWidth(movingText);
     let cycleWidth = width + textWidthValue;
@@ -257,8 +258,13 @@ class Task1 {
     let offset = (elapsed * this.movingTextSpeed / 1000) % cycleWidth;
     let x = width - offset;
 
-    text(movingText, x, height - 55);
-    text(movingText, x + cycleWidth, height - 55);
+    let textY = height - 55;
+    push();
+    translate(x, textY);
+    scale(zoomFactor);
+    text(movingText, 0, 0);
+    text(movingText, cycleWidth, 0);
+    pop();
     pop();
   }
 
